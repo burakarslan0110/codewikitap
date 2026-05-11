@@ -1,0 +1,14 @@
+# Production dependencies for fixture-app
+# Comment lines should be ignored
+
+requests==2.31.0
+django>=4.2,<5.0
+flask~=3.0  # inline comment is still part of the spec
+numpy
+
+# Editable installs and -r references must be ignored:
+-e ./local-pkg
+-r more.txt
+
+# Environment markers should be stripped from the name:
+sqlalchemy>=2.0; python_version >= "3.10"

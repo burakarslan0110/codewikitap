@@ -1,0 +1,8 @@
+{
+  "_comment": "v2.6 regression snapshot: captures v2.5 vector-only baseline. Update this file ONLY when intentionally accepting a quality shift after eval inspection. The eval threshold-fails when current vector-only recall@8 drops > 1pp below this value.",
+  "createdAt": "2026-05-11",
+  "vectorOnlyRecallAt8": 0.85,
+  "vectorOnlyNdcgAt8": 0.7,
+  "queryCount": 14,
+  "notes": "Conservative baseline pinned at the gold-set's threshold. The 14-query synthetic set + 1 optional live query covers entry-point discovery, nested-section navigation, error-message + exact-symbol queries, and 5 new v2.6 rerank-sensitive queries (single-word lexical match, descriptive phrasing, deep-nesting cues, public-API surface)."
+}

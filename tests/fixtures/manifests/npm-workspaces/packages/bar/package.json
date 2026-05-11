@@ -1,0 +1,8 @@
+{
+  "name": "bar",
+  "version": "0.0.1",
+  "dependencies": {
+    "react": "^18.0.0",
+    "axios": "^1.6.0"
+  }
+}

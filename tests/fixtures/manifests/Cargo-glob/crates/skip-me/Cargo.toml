@@ -1,0 +1,7 @@
+[package]
+name = "skip-me"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+should-not-appear = "1.0"

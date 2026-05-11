@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "codewikitap": {
+      "command": "npx",
+      "args": ["-y", "codewikitap"]
+    }
+  }
+}

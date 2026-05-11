@@ -1,0 +1,23 @@
+[versions]
+kotlin = "1.9.21"
+ktor = "2.3.7"
+
+[libraries]
+# String form
+guava = "com.google.guava:guava:33.0.0-jre"
+# Module + version table
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version = "2.16.0" }
+# Module + version.ref
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+# Group + name + version split form
+slf4j-api = { group = "org.slf4j", name = "slf4j-api", version = "2.0.9" }
+# Group + name + version.ref
+kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
+# version.ref pointing at a missing alias -> declaredVersion undefined
+mystery-lib = { module = "org.example:mystery", version.ref = "missing-alias" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+
+[bundles]
+ktor = ["ktor-server-core"]

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fixture-app"
+version = "0.1.0"
+description = "PEP 621 fixture for the manifest parser"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.110.0",
+  "pydantic~=2.5",
+  "httpx",
+  # this comment must not break parsing
+  "uvicorn[standard]>=0.27,<0.30",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.ruff]
+line-length = 100

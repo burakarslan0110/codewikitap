@@ -1,0 +1,5 @@
+[workspace]
+members = ["crates/*", "!crates/skip-me"]
+
+[workspace.dependencies]
+# (used by member crates via { workspace = true } — not directly emitted here)

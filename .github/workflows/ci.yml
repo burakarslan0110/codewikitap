@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel in-progress runs of the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint + Test + Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # Pin to 10.33.4. Do NOT use "latest" — pnpm 11.x adds an interactive
+          # approval gate on top of onlyBuiltDependencies that conflicts with
+          # our dangerouslyAllowAllBuilds flag.
+          version: 10.33.4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: pnpm
+
+      - name: Smoke-check pnpm major
+        # Fail-fast if action-setup version pin drifted; we depend on the 10.x
+        # API surface (dangerouslyAllowAllBuilds via setup-deps script).
+        run: |
+          set -e
+          ACTUAL=$(pnpm --version)
+          echo "pnpm --version: $ACTUAL"
+          echo "$ACTUAL" | grep -E '^10\.' || (echo "::error::Expected pnpm 10.x, got $ACTUAL" && exit 1)
+
+      - name: Install dependencies (with native build approval)
+        run: pnpm setup-deps
+
+      - name: Install Playwright headless shell
+        # Integration + audit tests need the chromium-headless-shell binary.
+        run: npx playwright install --only-shell chromium
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Integration tests
+        run: pnpm run test:integration
+
+      - name: Audit harness (regression-strict thresholds)
+        run: pnpm run audit

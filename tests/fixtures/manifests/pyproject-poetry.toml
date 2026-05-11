@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "poetry-fixture"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.110"
+pydantic = "^2.5"
+httpx = { version = "^0.27", extras = ["http2"] }
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.4"
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = "^1.5"

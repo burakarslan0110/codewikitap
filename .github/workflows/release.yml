@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write    # for creating GitHub Releases
+  id-token: write    # for npm provenance
+
+jobs:
+  publish:
+    name: Publish to npm + create GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout (full history for changelog extraction)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+
+      - name: Setup Node.js 20.x with npm registry auth
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Smoke-check pnpm major
+        run: |
+          set -e
+          ACTUAL=$(pnpm --version)
+          echo "pnpm --version: $ACTUAL"
+          echo "$ACTUAL" | grep -E '^10\.' || (echo "::error::Expected pnpm 10.x, got $ACTUAL" && exit 1)
+
+      - name: Install dependencies
+        run: pnpm setup-deps
+
+      - name: Build
+        run: pnpm build
+
+      - name: Verify tarball contents before publish
+        run: pnpm verify-publish
+
+      - name: Publish to npm
+        run: pnpm publish --no-git-checks --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Extract changelog section for this version
+        id: changelog
+        run: |
+          set -e
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # Extract from "## [VERSION]" line up to (but not including) the next "## [" line.
+          NOTES=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { capture = 1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md)
+          # Multi-line output via heredoc
+          {
+            echo "notes<<EOF_CHANGELOG"
+            echo "$NOTES"
+            echo "EOF_CHANGELOG"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.notes }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
