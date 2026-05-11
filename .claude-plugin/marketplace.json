@@ -1,0 +1,44 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "burakarslan0110-codewikitap",
+  "description": "Personal marketplace hosting CodeWiKiTap — the project-aware Google CodeWiki MCP server.",
+  "version": "0.3.0",
+  "owner": {
+    "name": "Burak Arslan",
+    "email": "burakarslan0110@gmail.com",
+    "url": "https://github.com/burakarslan0110"
+  },
+  "plugins": [
+    {
+      "name": "codewikitap",
+      "source": {
+        "source": "npm",
+        "package": "codewikitap"
+      },
+      "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents. 7 tools, hybrid sparse+dense retrieval, knowledge graph traversal, always-on citation enforcement.",
+      "version": "0.3.0",
+      "category": "documentation",
+      "tags": [
+        "mcp",
+        "codewiki",
+        "documentation",
+        "knowledge-graph",
+        "retrieval"
+      ],
+      "license": "MIT",
+      "author": {
+        "name": "Burak Arslan",
+        "email": "burakarslan0110@gmail.com"
+      },
+      "homepage": "https://github.com/burakarslan0110/codewikitap",
+      "repository": "https://github.com/burakarslan0110/codewikitap",
+      "keywords": [
+        "mcp",
+        "codewiki",
+        "google-codewiki",
+        "ai-agent",
+        "claude-code"
+      ]
+    }
+  ]
+}

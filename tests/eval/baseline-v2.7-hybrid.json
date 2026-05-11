@@ -1,0 +1,30 @@
+{
+  "version": "v2.7",
+  "createdAt": "2026-05-11T07:30:00.000Z",
+  "_notes": [
+    "v2.7 hybrid retrieval baseline. Floors come from v2.6's vector+rerank baseline on the same gold set.",
+    "Gate (three checks, all must pass):",
+    "  1. Delta: current.scorers[s].ndcgAt8 + 0.02 >= baseline.scorers[s].ndcgAt8 for every scorer.",
+    "  2. Absolute floor: current.scorers.hybridRRF.ndcgAt8 >= floors.ndcgAt8 AND recallAt8 >= floors.recallAt8.",
+    "  3. Cross-scorer sanity: current.scorers.hybridRRF.ndcgAt8 + 0.02 >= current.scorers.vectorOnly.ndcgAt8.",
+    "Scorer baseline numbers below are placeholders representing the v2.7 contract; the full eval extension (scripts/eval.ts) is a v2.7.1 follow-up. Unit tests TS-001..TS-005 in tests/unit/retriever.test.ts already lock in the hybrid behavior contract."
+  ],
+  "floors": {
+    "ndcgAt8": 0.55,
+    "recallAt8": 0.80
+  },
+  "scorers": {
+    "vectorOnly": {
+      "ndcgAt8": 0.70,
+      "recallAt8": 0.85
+    },
+    "bm25Only": {
+      "ndcgAt8": 0.60,
+      "recallAt8": 0.75
+    },
+    "hybridRRF": {
+      "ndcgAt8": 0.78,
+      "recallAt8": 0.90
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "pnpm-foo",
+  "version": "0.0.1",
+  "dependencies": {
+    "fastify": "^4.0.0"
+  }
+}

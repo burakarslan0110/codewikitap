@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>forward-ref-demo</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <parent>
+    <groupId>com.example.parent</groupId>
+    <artifactId>parent-pom</artifactId>
+    <version>2.5.0</version>
+  </parent>
+
+  <properties>
+    <!-- spring.version forward-references spring-boot.version declared LATER -->
+    <spring.version>${spring-boot.version}</spring.version>
+    <spring-boot.version>3.2.0</spring-boot.version>
+    <!-- two-deep chain: a -> b -> c (should emit undefined, no hang) -->
+    <chain.a>${chain.b}</chain.a>
+    <chain.b>${chain.c}</chain.b>
+    <chain.c>1.0.0</chain.c>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-core</artifactId>
+      <version>${spring.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>self-version</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.example.parent</groupId>
+      <artifactId>parent-version</artifactId>
+      <version>${parent.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>two-deep</artifactId>
+      <version>${chain.a}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>unknown-prop</artifactId>
+      <version>${nonexistent.version}</version>
+    </dependency>
+  </dependencies>
+</project>

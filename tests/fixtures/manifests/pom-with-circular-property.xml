@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>circular-demo</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <!-- A -> B -> A circular reference (must NOT hang) -->
+    <circ.a>${circ.b}</circ.a>
+    <circ.b>${circ.a}</circ.b>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>circular</artifactId>
+      <version>${circ.a}</version>
+    </dependency>
+  </dependencies>
+</project>

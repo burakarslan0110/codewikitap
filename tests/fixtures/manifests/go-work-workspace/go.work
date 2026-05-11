@@ -1,0 +1,9 @@
+go 1.22
+
+use (
+	./modA
+	./modB
+)
+
+// A line comment
+toolchain go1.22.0

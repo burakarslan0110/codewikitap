@@ -1,0 +1,8 @@
+{
+  "name": "pnpm-bar",
+  "version": "0.0.1",
+  "dependencies": {
+    "vitest": "^2.0.0",
+    "fastify": "^4.0.0"
+  }
+}

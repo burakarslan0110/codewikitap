@@ -1,0 +1,7 @@
+{
+  "_comment": "v2.7.1 KG semantic-rank baseline. Captures the local pnpm run eval numbers minus 0.02 tolerance. Update ONLY when intentionally accepting a quality shift after eval inspection. Regression check fires when current ordering or NDCG falls > 2pp below these floors.",
+  "createdAt": "2026-05-11",
+  "queryCount": 10,
+  "kgSemanticOrderingFloor": 0.78,
+  "kgSemanticNdcgFloor": 0.811
+}

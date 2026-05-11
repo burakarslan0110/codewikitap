@@ -1,0 +1,8 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "A", "src\A\A.csproj", "{aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "B", "src\B\B.csproj", "{bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}"
+EndProject
+Global
+EndGlobal

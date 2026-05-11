@@ -1,0 +1,8 @@
+{
+  "name": "pnpm-ws-root",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "shared-root-dep": "1.0.0"
+  }
+}

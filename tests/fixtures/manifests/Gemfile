@@ -1,0 +1,24 @@
+source 'https://rubygems.org'
+
+ruby '3.2.0'
+
+gem 'rails', '~> 7.1.0'
+gem 'puma', '>= 5.0'
+gem 'pg'
+
+group :development do
+  gem 'web-console'
+  gem 'listen', '~> 3.3'
+end
+
+group :test do
+  gem 'rspec-rails', '~> 6.0'
+end
+
+group :development, :test do
+  gem 'pry'
+end
+
+# Inline conditional
+gem 'tzinfo-data', platforms: [:windows, :jruby]
+gem 'pry-byebug' if ENV['DEBUG']

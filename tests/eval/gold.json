@@ -1,0 +1,222 @@
+{
+  "synthetic": [
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "where is the entry point",
+      "expectedSlugs": ["core"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "API surface",
+      "expectedSlugs": ["api"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "internals nested under core",
+      "expectedSlugs": ["core-internals"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "fixture overview",
+      "expectedSlugs": ["overview"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "rate-limited fetch",
+      "expectedSlugs": ["api"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "What does the entry point do, and where does it route from?",
+      "expectedSlugs": ["core"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "scanProject function",
+      "expectedSlugs": ["core-internals"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "TypeError: cannot read properties of undefined",
+      "expectedSlugs": ["core-internals"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "introduction and core architecture",
+      "expectedSlugs": ["overview", "core"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "core",
+      "expectedSlugs": ["core"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "internals",
+      "expectedSlugs": ["core-internals"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "introduction overview docs",
+      "expectedSlugs": ["overview"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "deeply nested implementation details",
+      "expectedSlugs": ["core-internals"]
+    },
+    {
+      "fixture": "synthetic",
+      "repo": "fixture/repo",
+      "query": "public api endpoints",
+      "expectedSlugs": ["api"]
+    }
+  ],
+  "live": [
+    {
+      "fixture": "react",
+      "repo": "facebook/react",
+      "query": "hooks",
+      "expectedSlugs": ["core-hooks"],
+      "skipIfMissing": true
+    }
+  ],
+  "kg": {
+    "synthetic": [
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "pages_referencing_file",
+        "args": { "file_path": "src/index.ts", "github_repo": "fixture/repo" },
+        "expectedNeighbors": [{ "kind": "section", "id": "fixture/repo#core" }]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "diagram_neighbors",
+        "args": { "repo": "fixture/repo", "section_slug": "core" },
+        "expectedNeighbors": [
+          { "kind": "diagram_node", "id": "fixture/repo#core::n1" },
+          { "kind": "diagram_node", "id": "fixture/repo#core::n2" }
+        ]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "section_links",
+        "args": { "repo": "fixture/repo", "section_slug": "overview", "direction": "out" },
+        "expectedNeighbors": [{ "kind": "section", "id": "fixture/repo#core" }]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "cross_repo",
+        "args": { "repo": "fixture/repo", "direction": "out" },
+        "expectedNeighbors": [{ "kind": "repo", "id": "facebook/react" }]
+      }
+    ],
+    "synthetic_semantic": [
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "section_links",
+        "args": { "repo": "fixture/repo", "section_slug": "overview", "direction": "out" },
+        "query": "core architecture and entry point",
+        "expectedOrder": ["fixture/repo#core"]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "section_links",
+        "args": { "repo": "fixture/repo", "section_slug": "core", "direction": "both" },
+        "query": "internals nested under core",
+        "expectedOrder": ["fixture/repo#core-internals"]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "section_links",
+        "args": { "repo": "fixture/repo", "section_slug": "core", "direction": "both" },
+        "query": "API surface",
+        "expectedOrder": ["fixture/repo#api"]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "section_links",
+        "args": { "repo": "fixture/repo", "section_slug": "core", "direction": "in" },
+        "query": "fixture overview docs introduction",
+        "expectedOrder": ["fixture/repo#overview"]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "section_links",
+        "args": { "repo": "fixture/repo", "section_slug": "overview", "direction": "both" },
+        "query": "core module entry point",
+        "expectedOrder": ["fixture/repo#core"]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "diagram_neighbors",
+        "args": { "repo": "fixture/repo", "section_slug": "core" },
+        "query": "diagram nodes for core flow",
+        "expectedOrder": ["fixture/repo#core::n1", "fixture/repo#core::n2"]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "diagram_neighbors",
+        "args": { "repo": "fixture/repo", "section_slug": "core", "diagram_node_id": "n1" },
+        "query": "downstream diagram node end state",
+        "expectedOrder": ["fixture/repo#core::n2"]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "pages_referencing_file",
+        "args": { "file_path": "src/index.ts", "github_repo": "fixture/repo" },
+        "query": "entry point implementation",
+        "expectedOrder": ["fixture/repo#core"]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "pages_referencing_file",
+        "args": { "file_path": "src/index.ts" },
+        "query": "core module returning 42",
+        "expectedOrder": ["fixture/repo#core"]
+      },
+      {
+        "fixture": "synthetic",
+        "repo": "fixture/repo",
+        "kind": "cross_repo",
+        "args": { "repo": "fixture/repo", "direction": "out" },
+        "query": "react cross repo dependency",
+        "expectedOrder": ["facebook/react"]
+      }
+    ]
+  },
+  "thresholds": {
+    "recallAtK": 0.85,
+    "citationCorrectness": 1.0,
+    "k": 8,
+    "kgGraphCorrectness": 1.0,
+    "kgSemanticOrdering": 0.7,
+    "kgSemanticNdcgAt8": 0.6
+  }
+}

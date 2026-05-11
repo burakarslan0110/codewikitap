@@ -1,0 +1,12 @@
+[workspace]
+members = [
+  "crates/foo",
+  "crates/bar",
+  "crates/*",
+]
+
+[workspace.dependencies]
+serde = "1.0"
+
+[dependencies]
+anyhow = "1"
