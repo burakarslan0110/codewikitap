@@ -1,6 +1,6 @@
 {
   "name": "codewikitap",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity). Scans your project's manifests, detects which dependencies have CodeWiki coverage, and exposes 7 structured tools with hybrid sparse+dense retrieval, knowledge graph traversal, and always-on citation enforcement.",
   "type": "module",
   "main": "dist/index.js",
@@ -14,7 +14,8 @@
     "LICENSE",
     "assets",
     ".claude-plugin",
-    ".mcp.json"
+    ".mcp.json",
+    "scripts/postinstall.mjs"
   ],
   "engines": {
     "node": ">=20.0.0 <21.0.0"
@@ -32,6 +33,7 @@
     "capture-fixtures": "node ./node_modules/tsx/dist/cli.mjs scripts/capture-fixtures.ts",
     "eval": "node ./node_modules/tsx/dist/cli.mjs scripts/eval.ts",
     "verify-publish": "node scripts/verify-publish.mjs",
+    "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "node ./node_modules/typescript/bin/tsc"
   },
   "keywords": [

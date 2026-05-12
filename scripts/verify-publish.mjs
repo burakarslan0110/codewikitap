@@ -40,6 +40,7 @@ const REQUIRED_FILES = [
   '.claude-plugin/marketplace.json',
   '.mcp.json',
   'dist/index.js',
+  'scripts/postinstall.mjs',
 ];
 
 const FORBIDDEN_PATTERNS = [
@@ -109,9 +110,13 @@ try {
   execSync('npm init -y', { cwd: tmpRoot, stdio: 'pipe' });
 
   log('Installing tarball into temp dir...');
+  // Smoke test only validates file allowlist + bin executability — skip the
+  // ~30 MB Playwright Chromium download by setting CODEWIKI_SKIP_POSTINSTALL=1.
+  // The postinstall hook itself is asserted via REQUIRED_FILES (scripts/postinstall.mjs).
   execSync(`npm install --no-fund --no-audit "${tarballPath}"`, {
     cwd: tmpRoot,
     stdio: 'pipe',
+    env: { ...process.env, CODEWIKI_SKIP_POSTINSTALL: '1' },
   });
 
   // 3. Locate the installed package.
@@ -135,6 +140,10 @@ try {
   }
 
   for (const file of installedFiles) {
+    // Files explicitly listed in REQUIRED_FILES are intentionally shipped
+    // (e.g., scripts/postinstall.mjs); skip the FORBIDDEN_PATTERNS defense
+    // layer for them. The defense still catches unintended ride-alongs.
+    if (REQUIRED_FILES.includes(file)) continue;
     for (const pattern of FORBIDDEN_PATTERNS) {
       if (pattern.test(file)) {
         fail(`UNEXPECTED IN TARBALL: ${file} (matches ${pattern.source})`);
