@@ -16,8 +16,14 @@ Thumbs.db
 .idea/
 
 # Test artifacts
+# Live CodeWiki page captures are big (~1MB each) and refreshable via
+# `pnpm capture-fixtures`. The three below are required by UNIT tests and
+# small/stable enough to commit so CI doesn't depend on Playwright + network.
 tests/fixtures/codewiki/*.html
 !tests/fixtures/codewiki/.gitkeep
+!tests/fixtures/codewiki/synthetic.html
+!tests/fixtures/codewiki/not-found.html
+!tests/fixtures/codewiki/not-found-live.html
 tmp/
 
 # Internal docs (plans, design refs, PRDs, test reports, submission runbook) — local only
