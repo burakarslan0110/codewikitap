@@ -445,7 +445,24 @@ The agent assembles an architecture summary that names actual modules in the act
 
 On first run, Playwright's `chromium-headless-shell` (~30 MB) is downloaded — CodeWiki is an Angular SPA and a plain HTTP request returns an empty shell, so a real browser is required. On the first `find_chunks` call, the ONNX embedder + reranker models (~50 MB combined) are downloaded. Both are one-time, persistently cached.
 
-You don't run `codewikitap` directly — your agent launches it as a child process. Add the four-line config block below for your agent of choice.
+You don't run `codewikitap` directly — your agent launches it as a child process. Either run the interactive installer below (recommended), or paste the manual config block for your agent of choice.
+
+### Interactive installer (recommended)
+
+```bash
+npx codewikitap install
+```
+
+Prompts for target (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity) and scope (project or user), shows a diff if an existing entry would be overwritten, and writes the appropriate config file atomically with a `.bak` backup.
+
+For scripted / CI use, all questions are flag-overridable:
+
+```bash
+npx codewikitap install --target=claude-code --scope=user --yes
+npx codewikitap install --target=cursor --scope=project --dry-run    # preview only
+```
+
+Available `--target` IDs: `claude-code`, `cursor`, `codex-cli`, `gemini-cli`, `qwen-code`, `opencode`, `windsurf`, `antigravity`. Available `--scope` values: `project`, `user` (some targets are user-only — the wizard auto-resolves).
 
 ### Claude Code
 
@@ -487,9 +504,33 @@ args = ["-y", "codewikitap"]
 
 `~/.gemini/settings.json` under `mcpServers` — identical shape to Claude Code.
 
-### Qwen Code, opencode, Antigravity
+### Qwen Code
 
-All accept an `mcpServers` (or `mcp`) JSON object — identical shape to Cursor / Claude Code. Paste, restart, done.
+`~/.qwen/settings.json` or `<project>/.qwen/settings.json` — same JSON shape as Claude Code.
+
+### opencode
+
+`opencode.json` (project) or `~/.config/opencode/opencode.json` (user). opencode uses `mcp.<name>` (not `mcpServers`) and each entry needs a `type` discriminator:
+
+```json
+{
+  "mcp": {
+    "codewikitap": {
+      "type": "local",
+      "command": "npx",
+      "args": ["-y", "codewikitap"]
+    }
+  }
+}
+```
+
+### Windsurf
+
+`~/.codeium/windsurf/mcp_config.json` — same JSON shape as Claude Code. User scope only (no per-project config path documented upstream).
+
+### Antigravity
+
+`~/.gemini/antigravity/mcp_config.json` — same JSON shape as Claude Code. User scope only.
 
 ---
 
