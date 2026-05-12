@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-05-12
+
+### Notes
+
+- drop 'Why npx not npm install -g' subsection
+- clarify npx vs npm install -g; add wizard to npm landing
+
 ## [0.4.1] - 2026-05-12
 
 ### Fixed
