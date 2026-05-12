@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-12
+
+### Fixed
+
+- **Auto-install Playwright chromium-headless-shell on package install.** The README always promised "first run downloads ~30 MB of Chromium", but Playwright v1.40+ no longer auto-downloads browsers in its own postinstall, so consumers of v0.3.0 hit `browserType.launch: Executable doesn't exist…` on the first `find_chunks` or `get_page` call. v0.3.1 adds a top-level `postinstall` hook (`scripts/postinstall.mjs`) that runs `playwright install --only-shell chromium` after `npm install` / `npx codewikitap`. Idempotent (skips when cached), fail-soft (prints a recovery command and exits 0 on download failure rather than breaking the install), and opt-out via `CODEWIKI_SKIP_POSTINSTALL=1` for CI image builders.
+
+### Notes
+
+- `verify-publish` smoke test sets `CODEWIKI_SKIP_POSTINSTALL=1` so the tarball-into-tmpdir install doesn't pull 30 MB on every release; tarball-shape assertions still verify `scripts/postinstall.mjs` is present in the published package.
+- First-time installs now have an extra ~30 MB / ~20-second step inside `npm install`. Existing v0.3.0 installs that already ran `playwright install` manually are unaffected (the second download is a no-op).
+
 ## [0.3.0] - 2026-05-11
 
 ### Highlights
