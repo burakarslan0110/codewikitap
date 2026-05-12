@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap/main/assets/logo.png" alt="CodeWikiTap" width="520"/>
+  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap/main/assets/banner.png?v=2" alt="CodeWikiTap" width="720"/>
 </p>
 
 <h1 align="center">CodeWikiTap</h1>
