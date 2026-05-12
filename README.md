@@ -464,6 +464,21 @@ npx codewikitap install --target=cursor --scope=project --dry-run    # preview o
 
 Available `--target` IDs: `claude-code`, `cursor`, `codex-cli`, `gemini-cli`, `qwen-code`, `opencode`, `windsurf`, `antigravity`. Available `--scope` values: `project`, `user` (some targets are user-only — the wizard auto-resolves).
 
+#### Why `npx` and not `npm install -g`?
+
+The wizard is a one-shot setup command — same pattern as `npx create-react-app` or `npx create-next-app`. You run it once, it writes the MCP config block into your agent's settings file, and you're done. There's nothing persistent to "install globally" because the agent itself spawns `codewikitap` on demand via the `npx -y codewikitap` entry the wizard writes.
+
+If you prefer a global binary (e.g. you run the wizard a lot while testing, and want to skip npx's per-invocation fetch):
+
+```bash
+npm install -g codewikitap
+codewikitap install
+```
+
+Trade-off: you take ownership of upgrades (`npm update -g codewikitap` whenever a new version ships) and you're responsible for resolving PATH / permission issues common to global npm installs. For 99% of users, `npx codewikitap install` is the right answer.
+
+> Note: even after a global install, the **MCP entry written into your agent's config still uses `npx -y codewikitap`** so your agent always pulls the latest published server. If you want the MCP entry itself to point at the global binary, edit the config block by hand after the wizard runs.
+
 ### Claude Code
 
 `~/.claude/mcp.json` (user-level) or `.mcp.json` at the project root:

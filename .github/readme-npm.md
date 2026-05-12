@@ -15,11 +15,24 @@
 
 ## Install
 
+One command — interactive wizard that writes the MCP config block into your agent of choice:
+
 ```bash
-npx codewikitap
+npx codewikitap install
 ```
 
-That's the whole install. No API keys, no cloud, no telemetry — it runs locally as an MCP server over stdio. On first run, Playwright's `chromium-headless-shell` (~30 MB) and ONNX models for retrieval (~50 MB) are cached once.
+Pick a target (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity) and a scope (project or user). The wizard writes the correct config file atomically with a `.bak` backup. For CI / scripted use, all answers can be passed as flags:
+
+```bash
+npx codewikitap install --target=claude-code --scope=user --yes
+npx codewikitap install --target=cursor --scope=project --dry-run    # preview only
+```
+
+No API keys, no cloud, no telemetry — it runs locally as an MCP server over stdio. On first agent invocation, Playwright's `chromium-headless-shell` (~30 MB) and ONNX models for retrieval (~50 MB) are cached once.
+
+### Why `npx` and not `npm install -g`?
+
+Same pattern as `npx create-react-app` — a one-shot setup command, nothing to install globally. The agent itself spawns `codewikitap` on demand via the `npx -y codewikitap` entry the wizard writes into your MCP config. If you want a global binary anyway: `npm install -g codewikitap && codewikitap install` — same wizard, you take ownership of upgrades.
 
 ## 30-second pitch
 
@@ -29,7 +42,9 @@ It scans your project's manifest at startup, resolves direct dependencies to Git
 
 **The data source is [Google CodeWiki](https://codewiki.google)** — Gemini-generated documentation regenerated on every PR merge for every public GitHub repo. This package is **unofficial** and not affiliated with Google in any way.
 
-## Wire it into your agent (pick one)
+## Manual config (skip the wizard)
+
+If you'd rather paste the config block yourself, here are the canonical paths and shapes:
 
 ### Claude Code
 
@@ -46,12 +61,7 @@ It scans your project's manifest at startup, resolves direct dependencies to Git
 }
 ```
 
-Or via the marketplace:
-
-```text
-/plugin marketplace add burakarslan0110/codewikitap
-/plugin install codewikitap@burakarslan0110-codewikitap
-```
+Or via the marketplace: `/plugin marketplace add burakarslan0110/codewikitap` → `/plugin install codewikitap@burakarslan0110-codewikitap`.
 
 ### Cursor
 
@@ -67,13 +77,29 @@ command = "npx"
 args = ["-y", "codewikitap"]
 ```
 
-### Gemini CLI
+### Gemini CLI / Qwen Code
 
-`~/.gemini/settings.json` under `mcpServers` — same shape as Claude Code.
+`~/.gemini/settings.json` or `~/.qwen/settings.json` under `mcpServers` — same shape as Claude Code.
 
-### Qwen Code, opencode, Antigravity
+### opencode
 
-Identical `mcpServers` JSON shape — paste, restart, done.
+`opencode.json` (project) or `~/.config/opencode/opencode.json` (user). opencode uses `mcp.<name>` (not `mcpServers`) and requires a `type` discriminator:
+
+```json
+{
+  "mcp": {
+    "codewikitap": { "type": "local", "command": "npx", "args": ["-y", "codewikitap"] }
+  }
+}
+```
+
+### Windsurf
+
+`~/.codeium/windsurf/mcp_config.json` — same JSON shape as Claude Code. User scope only.
+
+### Antigravity
+
+`~/.gemini/antigravity/mcp_config.json` — same JSON shape as Claude Code. User scope only.
 
 ## What it supports
 
