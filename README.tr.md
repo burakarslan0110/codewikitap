@@ -465,21 +465,6 @@ npx codewikitap install --target=cursor --scope=project --dry-run    # önizleme
 
 Geçerli `--target` değerleri: `claude-code`, `cursor`, `codex-cli`, `gemini-cli`, `qwen-code`, `opencode`, `windsurf`, `antigravity`. Geçerli `--scope` değerleri: `project`, `user` (bazı hedefler user-only — sihirbaz otomatik seçer).
 
-#### Neden `npx`, `npm install -g` değil?
-
-Sihirbaz tek seferlik bir setup komutu — `npx create-react-app` veya `npx create-next-app` ile aynı pattern. Bir kez çalıştırırsın, MCP config bloğunu agent'ının ayarlar dosyasına yazar, biter. Kalıcı olarak "global yüklenecek" bir şey yok çünkü agent'ın kendisi sihirbazın yazdığı `npx -y codewikitap` entry'si üzerinden `codewikitap`'i her ihtiyaç duyduğunda spawn ediyor.
-
-Eğer global bir binary istersen (örn. test ederken sihirbazı çok sık çalıştırıyorsun ve npx'in her seferki fetch'inden kaçınmak istiyorsun):
-
-```bash
-npm install -g codewikitap
-codewikitap install
-```
-
-Trade-off: güncellemenin sorumluluğu sende (yeni versiyon çıkınca `npm update -g codewikitap`) ve global npm install'larda tipik PATH / permission sorunlarını sen çözeceksin. %99 kullanıcı için doğru cevap `npx codewikitap install`.
-
-> Not: global install yapsan bile **sihirbazın agent config'ine yazdığı MCP entry'si hâlâ `npx -y codewikitap` kullanıyor** — böylece agent her zaman yayınlanan son sürümü çekiyor. MCP entry'sinin de global binary'yi göstermesini istersen, sihirbaz çalıştıktan sonra config bloğunu elle düzenle.
-
 ### Claude Code
 
 `~/.claude/mcp.json` (user level) veya proje kökünde `.mcp.json`:
