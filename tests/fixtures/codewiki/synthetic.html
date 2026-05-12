@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><title>fixture</title></head><body>
+<body-content-section>
+  <div id="overview">
+    <documentation-markdown>
+      <h1>Overview</h1>
+      <p>The fixture repo demonstrates extraction of every element type. See <a href="https://codewiki.google/github.com/fixture/repo#core">Core</a>.</p>
+    </documentation-markdown>
+  </div>
+</body-content-section>
+
+<body-content-section>
+  <div id="core">
+    <documentation-markdown>
+      <h2>Core</h2>
+      <p>Core module provides the entry point in <a href="https://github.com/fixture/repo/blob/aabbccddeeff00112233445566778899aabbccdd/src/index.ts#L24-L36"><code>src/index.ts</code></a>.</p>
+      <pre><code class="language-ts">export function entry() {
+  return 42;
+}</code></pre>
+    </documentation-markdown>
+    <code-documentation-diagram-inline data-test-id="diagram-inline">
+      <code-documentation-diagram-contents>
+        <svg viewBox="0 0 100 100">
+          <g class="node"><title>n1</title><text>Start</text></g>
+          <g class="node"><title>n2</title><text>End</text></g>
+          <g class="edge"><title>n1-&gt;n2</title></g>
+        </svg>
+      </code-documentation-diagram-contents>
+    </code-documentation-diagram-inline>
+  </div>
+</body-content-section>
+
+<body-content-section>
+  <div id="core-internals">
+    <documentation-markdown>
+      <h3>Internals</h3>
+      <p>Internals are nested under Core. Their slug starts with <code>core-</code>. See <a href="https://codewiki.google/github.com/facebook/react#core-hooks">React core hooks</a> for a related cross-repo example.</p>
+    </documentation-markdown>
+  </div>
+</body-content-section>
+
+<body-content-section>
+  <div id="api">
+    <documentation-markdown>
+      <h2>API</h2>
+      <p>API surface.</p>
+    </documentation-markdown>
+  </div>
+</body-content-section>
+</body></html>
