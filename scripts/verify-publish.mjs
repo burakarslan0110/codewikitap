@@ -151,6 +151,19 @@ try {
     }
   }
 
+  // Defense against the README* npm glob trap. npm always force-ships every
+  // file at the package root whose name starts with `README`, regardless of
+  // the `files` allowlist or `.npmignore`. The only safe pattern is to keep
+  // template sources OUT of the repo root (e.g. .github/readme-npm.md) or
+  // dot-prefix backups (e.g. .readme-github.bak). Catch leaks here so we
+  // never publish a tarball with duplicates again.
+  const ALLOWED_READMES = new Set(['README.md', 'README.tr.md']);
+  for (const file of installedFiles) {
+    if (file.startsWith('README') && file.endsWith('.md') && !ALLOWED_READMES.has(file)) {
+      fail(`README* LEAK: ${file} — npm force-ships any README* at the repo root. Move the source out of root (e.g. .github/readme-*.md) or dot-prefix it.`);
+    }
+  }
+
   // 5. Assert bin file exists + is executable. Do NOT invoke.
   const binPath = join(tmpRoot, 'node_modules', '.bin', BIN_NAME);
   if (!existsSync(binPath)) {
