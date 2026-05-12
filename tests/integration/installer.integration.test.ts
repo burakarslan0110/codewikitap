@@ -223,6 +223,42 @@ describe('installer integration (TS-001..TS-009)', () => {
     });
   });
 
+  describe('Symlink invocation (regression: npx bin symlink + macOS /tmp symlink)', () => {
+    // Repro for the v0.4.0 bug where `npx codewikitap install` silently
+    // exited 0 with no output. Root cause: the bin-entry guard compared
+    // `fileURLToPath(import.meta.url)` (real path) against `process.argv[1]`
+    // (symlink path) directly, which is false negative when npx symlinks
+    // the bin into node_modules/.bin/ OR when invoked through a path with
+    // intermediate symlinks (macOS /tmp → /private/tmp). The fix wraps
+    // argv[1] in fs.realpathSync before the compare. This test invokes
+    // the bin through a fresh symlink to lock the regression.
+    it('install --help works when invoked via a symlink to dist/index.js', async () => {
+      const linkDir = await fs.mkdtemp(path.join(os.tmpdir(), 'installer-link-'));
+      const linkPath = path.join(linkDir, 'codewikitap-link');
+      await fs.symlink(BIN, linkPath);
+      try {
+        const result = await new Promise<RunResult>((resolve, reject) => {
+          const child = spawn(process.execPath, [linkPath, 'install', '--help'], {
+            cwd: tmpCwd,
+            env,
+            stdio: ['ignore', 'pipe', 'pipe'],
+          });
+          let stdout = '';
+          let stderr = '';
+          child.stdout.on('data', (b) => { stdout += b.toString(); });
+          child.stderr.on('data', (b) => { stderr += b.toString(); });
+          child.on('error', reject);
+          child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }));
+        });
+        expect(result.code).toBe(0);
+        expect(result.stdout).toContain('Usage: npx codewikitap install');
+        expect(result.stdout).toContain('--target');
+      } finally {
+        await fs.rm(linkDir, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe('TS-009: Pre-existing unrelated MCP entries survive', () => {
     it('mcpServers.other is byte-identical post-run; codewikitap added alongside', async () => {
       const target = path.join(tmpHome, '.claude/mcp.json');
