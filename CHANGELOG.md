@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-12
+
+### Added
+
+- add interactive `npx codewikitap install` wizard
+
 ## [0.3.1] - 2026-05-12
 
 ### Fixed
