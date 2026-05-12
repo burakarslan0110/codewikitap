@@ -60,5 +60,10 @@ jobs:
       - name: Integration tests
         run: pnpm run test:integration
 
-      - name: Audit harness (regression-strict thresholds)
-        run: pnpm run audit
+      # Audit harness is intentionally NOT run in CI.
+      # It is a manual-only regression suite — see CLAUDE.md "Vitest projects":
+      # `pnpm test` and `pnpm run test:all` deliberately exclude `audit`;
+      # only `pnpm run audit` runs it. Several audit cases also depend on
+      # `docs/plans/*.md` files, which are gitignored (local-only spec history),
+      # so the suite can never be green in CI without committing those plans.
+      # Run `pnpm run audit` locally before tagging a release.
