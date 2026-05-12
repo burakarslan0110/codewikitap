@@ -302,7 +302,24 @@ async function main(): Promise<void> {
 // `runEmbedderAutoReindex` from this module; without the guard, main()
 // would also fire (Playwright bootstrap, manifest scan, stdio transport
 // connect) during the test process and call process.exit(1) on failure.
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+//
+// Resolve symlinks before comparing: npx symlinks the bin via
+// node_modules/.bin/codewikitap, and on macOS /tmp itself is a symlink to
+// /private/tmp. Without realpathSync, a direct string compare against
+// import.meta.url (which is always the real path) is false negative and
+// the bin silently no-ops on `npx codewikitap install` invocations.
+function isBinEntry(): boolean {
+  if (!process.argv[1]) return false;
+  const metaPath = fileURLToPath(import.meta.url);
+  if (metaPath === process.argv[1]) return true;
+  try {
+    return metaPath === fs.realpathSync(process.argv[1]);
+  } catch {
+    return false;
+  }
+}
+
+if (isBinEntry()) {
   if (process.argv[2] === 'install') {
     import('./installer/cli.js').then((m) => m.runInstallerCli(process.argv.slice(3))).then(() => process.exit(0)).catch((err) => {
       process.stderr.write(`Fatal: ${err instanceof Error ? err.stack : String(err)}\n`);
