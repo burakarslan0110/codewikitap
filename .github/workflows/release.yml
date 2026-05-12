@@ -46,6 +46,16 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Swap in the npm landing README
+        # README.md on main is the long GitHub version. npm visitors get a
+        # shorter install-first variant. Swap MUST happen before verify-publish
+        # so the verification reflects exactly what will ship.
+        run: |
+          set -e
+          test -f .github/readme-npm.md || { echo "::error::.github/readme-npm.md missing"; exit 1; }
+          cp .github/readme-npm.md README.md
+          echo "Swapped README.md ← .github/readme-npm.md ($(wc -c <README.md) bytes)"
+
       - name: Verify tarball contents before publish
         run: pnpm verify-publish
 
