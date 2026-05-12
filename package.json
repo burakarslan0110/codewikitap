@@ -21,7 +21,7 @@
   },
   "packageManager": "pnpm@10.33.4",
   "scripts": {
-    "setup-deps": "pnpm install --config.dangerouslyAllowAllBuilds=true",
+    "setup-deps": "pnpm install",
     "build": "node ./node_modules/typescript/bin/tsc",
     "dev": "node ./node_modules/tsx/dist/cli.mjs src/index.ts",
     "lint": "node ./node_modules/eslint/bin/eslint.js src tests scripts --ext .ts",
