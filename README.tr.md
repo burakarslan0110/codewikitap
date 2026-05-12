@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap/main/assets/logo.png" alt="CodeWiKiTap" width="520"/>
+  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap/main/assets/logo.png" alt="CodeWikiTap" width="520"/>
 </p>
 
-<h1 align="center">CodeWiKiTap</h1>
+<h1 align="center">CodeWikiTap</h1>
 
 <p align="center">
   <strong>Google CodeWiki dokümantasyonunu kodlama agent'ına RAG ile akıtan <em>unofficial</em> bir MCP server'ı — parçalanmış, kaynak gösterilmiş, paketin pinli olduğu commit SHA'sına sabitlenmiş şekilde.</strong>
@@ -29,7 +29,7 @@ npx codewikitap
 ## İçindekiler
 
 1. [Google CodeWiki nedir?](#google-codewiki-nedir)
-2. [CodeWiKiTap nedir?](#codewikitap-nedir)
+2. [CodeWikiTap nedir?](#codewikitap-nedir)
 3. [Neden RAG-powered? Doc'u doğrudan vermek varken neden?](#neden-rag-powered)
 4. [Kaputun altında neler dönüyor?](#kaputun-altinda)
 5. [Yedi tool](#yedi-tool)
@@ -57,17 +57,17 @@ CodeWiki sayfasında bulduğun şey, sıradan bir API tablosundan ibaret değil:
 
 Dikkat edilecek iki şey var:
 
-1. **Yalnız public GitHub.** Private repo erişimi waitlist'teki bir Gemini extension'ının arkasında; CodeWiKiTap bu kısıtı aşmıyor.
+1. **Yalnız public GitHub.** Private repo erişimi waitlist'teki bir Gemini extension'ının arkasında; CodeWikiTap bu kısıtı aşmıyor.
 2. **AI-generated içerik.** Gemini iyi ama yanılmaz değil. Her sayfa kaynağına link veriyor — doğruluk kritikse oraya bakmak lazım.
 
-> ⚠️ **CodeWiKiTap Google ile bağlantılı değildir.** CodeWiki adı yalnızca veri kaynağı olarak betimleyici şekilde geçer. Bu, bağımsız bir open-source projedir; içerikte ne Google'a ait bir parça vardır ne de Google'ın onayı/desteği söz konusudur.
+> ⚠️ **CodeWikiTap Google ile bağlantılı değildir.** CodeWiki adı yalnızca veri kaynağı olarak betimleyici şekilde geçer. Bu, bağımsız bir open-source projedir; içerikte ne Google'a ait bir parça vardır ne de Google'ın onayı/desteği söz konusudur.
 
 ---
 
 <a id="codewikitap-nedir"></a>
-## CodeWiKiTap nedir?
+## CodeWikiTap nedir?
 
-CodeWiKiTap, makinende lokal çalışan küçük bir Node/TypeScript programı — bir **Model Context Protocol (MCP) server**. Kodlama agent'ın (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, …) ona stdio üzerinden konuşur. Kilitli bir **yedi tool**'luk yüzey sunar — altı read-only, bir pre-warm — ve agent ihtiyacı olduğu anda CodeWiki içeriğini context'ine çekebilir.
+CodeWikiTap, makinende lokal çalışan küçük bir Node/TypeScript programı — bir **Model Context Protocol (MCP) server**. Kodlama agent'ın (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, …) ona stdio üzerinden konuşur. Kilitli bir **yedi tool**'luk yüzey sunar — altı read-only, bir pre-warm — ve agent ihtiyacı olduğu anda CodeWiki içeriğini context'ine çekebilir.
 
 En kısa zihinsel model:
 
@@ -79,7 +79,7 @@ En kısa zihinsel model:
                     │  stdio (JSON-RPC)
                     ▼
        ┌────────────────────────┐
-       │      CodeWiKiTap       │   ← lokal, API key yok, telemetri yok
+       │      CodeWikiTap       │   ← lokal, API key yok, telemetri yok
        │   (bu MCP server)      │
        └────────────┬───────────┘
                     │  hybrid retrieval, indekslenmiş CodeWiki sayfaları
@@ -119,7 +119,7 @@ NAİF YAKLAŞIM (RAG yok) — "agent'a her şeyi ver"
               ✗ context patladı · ✗ cost fırladı · ✗ relevance gürültüde kayboldu
 
 
-RAG (CodeWiKiTap'in yaptığı)
+RAG (CodeWikiTap'in yaptığı)
 
    54k token Next.js doc'u
           │
@@ -538,7 +538,7 @@ args = ["-y", "codewikitap"]
 <a id="desteklenen-projeler"></a>
 ## Desteklenen proje türleri
 
-CodeWiKiTap projeni "tanımak" için manifest'i okur. 11 ecosystem'de tam destek var, gerektiğinde workspace traversal ile:
+CodeWikiTap projeni "tanımak" için manifest'i okur. 11 ecosystem'de tam destek var, gerektiğinde workspace traversal ile:
 
 | Ecosystem | Manifest | Workspace / ek |
 |---|---|---|
@@ -579,7 +579,7 @@ Tam liste: [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Bilinmesi gerekenler
 
 - **AI-generated içerik.** Google CodeWiki sayfaları Gemini tarafından üretilir, hata içerebilir. Her chunk ve sayfa altındaki byte-equal citation footer doğrulama için var.
-- **Rate limit.** CodeWiki, aktif bot detection'lı bir Angular SPA. CodeWiKiTap kendi tarafında **origin başına 4 saniyede 1 sayfa yükleme** limiti uygular. Tipik interaktif kullanımda hissedilmez; çok sayıda repo'yu eşzamanlı bulk-indeksleme yaparken hissedilir.
+- **Rate limit.** CodeWiki, aktif bot detection'lı bir Angular SPA. CodeWikiTap kendi tarafında **origin başına 4 saniyede 1 sayfa yükleme** limiti uygular. Tipik interaktif kullanımda hissedilmez; çok sayıda repo'yu eşzamanlı bulk-indeksleme yaparken hissedilir.
 - **Install boyutu.** İlk çalıştırma: ~30 MB Playwright shell. İlk `find_chunks`: ~50 MB ONNX model. İkisi de tek seferlik, kalıcı olarak `~/.cache/...` altında.
 - **Kapsam.** Yalnız direct dependency'ler. `peerDependencies` ve transitive dep'ler kapsam dışı; npm `optionalDependencies` dahil.
 - **Offline dostu.** Bir repo'nun chunk ve KG edge'leri `cache.db`'ye girdikten sonra, 24 saatlik SHA probe devreye girene kadar sorgular network round-trip'i olmadan çalışır.
@@ -589,7 +589,7 @@ Tam liste: [CONTRIBUTING.md](CONTRIBUTING.md).
 <a id="ne-degildir"></a>
 ## Ne *değildir*
 
-- **Bir AI modeli değildir.** İçinde bundle'lı model yok. CodeWiKiTap, agent'ın zaten kullandığı AI'a giden **context kalitesini** iyileştirir.
+- **Bir AI modeli değildir.** İçinde bundle'lı model yok. CodeWikiTap, agent'ın zaten kullandığı AI'a giden **context kalitesini** iyileştirir.
 - **Dokümantasyon üreticisi değildir.** İçerik burada üretilmez. Google CodeWiki'nin Gemini ile ürettiği dokümantasyon fetch'lenir.
 - **Cloud servisi değildir.** Hiçbir şey makinenden çıkmaz. Lokal SQLite cache, lokal ONNX inference, sıfır telemetri.
 - **Google ile bağlantılı değildir.** Bağımsız open-source proje; "CodeWiki" adı yalnızca upstream veri kaynağı olarak betimleyici şekilde geçer.
@@ -616,4 +616,4 @@ Tam liste: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 [MIT](LICENSE) — © 2026 Burak Arslan.
 
-> CodeWiKiTap bağımsız, **unofficial** bir projedir. Google ile bağlantılı değildir; Google tarafından onaylanmamış veya desteklenmemiştir. "CodeWiki" adı yalnızca upstream veri kaynağı olarak betimleyici şekilde geçer.
+> CodeWikiTap bağımsız, **unofficial** bir projedir. Google ile bağlantılı değildir; Google tarafından onaylanmamış veya desteklenmemiştir. "CodeWiki" adı yalnızca upstream veri kaynağı olarak betimleyici şekilde geçer.

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap/main/assets/logo.png" alt="CodeWiKiTap" width="520"/>
+  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap/main/assets/logo.png" alt="CodeWikiTap" width="520"/>
 </p>
 
-<h1 align="center">CodeWiKiTap</h1>
+<h1 align="center">CodeWikiTap</h1>
 
 <p align="center">
   <strong>An <em>unofficial</em>, RAG-powered MCP server that streams Google CodeWiki documentation into your coding agent — chunked, cited, and grounded in the exact commit your dependency is pinned to.</strong>
@@ -25,7 +25,7 @@
 ## Table of contents
 
 1. [What is Google CodeWiki?](#what-is-google-codewiki)
-2. [What is CodeWiKiTap?](#what-is-codewikitap)
+2. [What is CodeWikiTap?](#what-is-codewikitap)
 3. [Why RAG-powered (and not just dump the docs)?](#why-rag-powered)
 4. [How it works under the hood](#how-it-works-under-the-hood)
 5. [The seven tools](#the-seven-tools)
@@ -53,17 +53,17 @@ What lands on a CodeWiki page is more than an API table:
 
 Two practical caveats matter:
 
-1. **Public GitHub only.** Private repos are gated behind a waitlisted Gemini extension; CodeWiKiTap does not work around that.
+1. **Public GitHub only.** Private repos are gated behind a waitlisted Gemini extension; CodeWikiTap does not work around that.
 2. **AI-generated content.** Gemini is good but not infallible. Every page links back to the source — verify when correctness matters.
 
-> ⚠️ **CodeWiKiTap is not affiliated with Google.** The CodeWiki name is referenced descriptively as the upstream data source. This is an independent open-source project; nothing here ships with, or is endorsed by, Google.
+> ⚠️ **CodeWikiTap is not affiliated with Google.** The CodeWiki name is referenced descriptively as the upstream data source. This is an independent open-source project; nothing here ships with, or is endorsed by, Google.
 
 ---
 
 <a id="what-is-codewikitap"></a>
-## What is CodeWiKiTap?
+## What is CodeWikiTap?
 
-CodeWiKiTap is a small Node/TypeScript program that runs locally on your machine as a **Model Context Protocol (MCP) server**. Your coding agent (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, …) talks to it over stdio, and it exposes a locked surface of **seven tools** — six read-only plus one pre-warm — that let the agent pull CodeWiki content into its context window on demand.
+CodeWikiTap is a small Node/TypeScript program that runs locally on your machine as a **Model Context Protocol (MCP) server**. Your coding agent (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, …) talks to it over stdio, and it exposes a locked surface of **seven tools** — six read-only plus one pre-warm — that let the agent pull CodeWiki content into its context window on demand.
 
 The shortest possible mental model:
 
@@ -75,7 +75,7 @@ The shortest possible mental model:
                     │  stdio (JSON-RPC)
                     ▼
        ┌────────────────────────┐
-       │      CodeWiKiTap       │   ← local, no API keys, no telemetry
+       │      CodeWikiTap       │   ← local, no API keys, no telemetry
        │   (this MCP server)    │
        └────────────┬───────────┘
                     │  hybrid retrieval over indexed CodeWiki pages
@@ -115,7 +115,7 @@ NAIVE (no RAG) — "give the agent everything"
               ╳ context blown · ╳ cost spike · ╳ relevance drowns in noise
 
 
-RAG (what CodeWiKiTap does)
+RAG (what CodeWikiTap does)
 
    54k tokens of Next.js docs
           │
@@ -533,7 +533,7 @@ args = ["-y", "codewikitap"]
 <a id="supported-project-types"></a>
 ## Supported project types
 
-CodeWiKiTap reads your manifest to learn what your project actually depends on. Eleven ecosystems are supported out of the box, with workspace traversal where applicable:
+CodeWikiTap reads your manifest to learn what your project actually depends on. Eleven ecosystems are supported out of the box, with workspace traversal where applicable:
 
 | Ecosystem | Manifest | Workspace / extras |
 |---|---|---|
@@ -574,7 +574,7 @@ Full reference is in [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Things worth knowing
 
 - **AI-generated content.** Google CodeWiki pages are produced by Gemini and may contain errors. The byte-equal citation footer on every chunk and page is meant to be used for verification.
-- **Rate limit.** CodeWiki is an Angular SPA with active bot detection. CodeWiKiTap self-throttles to **one page load per four seconds per origin**. Typical interactive use never feels this; bulk-indexing many repos at once will.
+- **Rate limit.** CodeWiki is an Angular SPA with active bot detection. CodeWikiTap self-throttles to **one page load per four seconds per origin**. Typical interactive use never feels this; bulk-indexing many repos at once will.
 - **Install footprint.** First run: ~30 MB Playwright shell. First `find_chunks`: ~50 MB ONNX models. Both one-time, persistently cached under `~/.cache/...`.
 - **Scope.** Direct dependencies only. `peerDependencies` and transitive deps are out of scope; npm `optionalDependencies` are in.
 - **Offline-friendly.** Once a repo's chunks + KG edges are in `cache.db`, queries work without a network round-trip until the 24h SHA probe kicks in.
@@ -584,7 +584,7 @@ Full reference is in [CONTRIBUTING.md](CONTRIBUTING.md).
 <a id="what-this-is-not"></a>
 ## What this is *not*
 
-- **Not an AI model.** No model is bundled here. CodeWiKiTap improves the *context quality* delivered to the AI your agent already uses.
+- **Not an AI model.** No model is bundled here. CodeWikiTap improves the *context quality* delivered to the AI your agent already uses.
 - **Not a documentation generator.** Content is not produced here. It is fetched from Google CodeWiki, which Gemini produces.
 - **Not a cloud service.** Nothing leaves your machine. Local SQLite cache, local ONNX inference, zero telemetry.
 - **Not affiliated with Google.** Independent open-source project; the upstream "CodeWiki" name is referenced descriptively as the data source.
@@ -611,4 +611,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the pnpm toolchain, test workflow, an
 
 [MIT](LICENSE) — © 2026 Burak Arslan.
 
-> CodeWiKiTap is an independent, **unofficial** project. It is not affiliated with, endorsed by, or sponsored by Google. The "CodeWiki" name is referenced descriptively as the upstream data source.
+> CodeWikiTap is an independent, **unofficial** project. It is not affiliated with, endorsed by, or sponsored by Google. The "CodeWiki" name is referenced descriptively as the upstream data source.
