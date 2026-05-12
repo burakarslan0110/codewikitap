@@ -20,10 +20,6 @@
   🇬🇧 <strong>English</strong> · <a href="README.tr.md">🇹🇷 Türkçe</a>
 </p>
 
-```bash
-npx codewikitap
-```
-
 ---
 
 ## Table of contents
