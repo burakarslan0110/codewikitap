@@ -303,8 +303,15 @@ async function main(): Promise<void> {
 // would also fire (Playwright bootstrap, manifest scan, stdio transport
 // connect) during the test process and call process.exit(1) on failure.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  main().catch((err) => {
-    process.stderr.write(`Fatal: ${err instanceof Error ? err.stack : String(err)}\n`);
-    process.exit(1);
-  });
+  if (process.argv[2] === 'install') {
+    import('./installer/cli.js').then((m) => m.runInstallerCli(process.argv.slice(3))).then(() => process.exit(0)).catch((err) => {
+      process.stderr.write(`Fatal: ${err instanceof Error ? err.stack : String(err)}\n`);
+      process.exit(1);
+    });
+  } else {
+    main().catch((err) => {
+      process.stderr.write(`Fatal: ${err instanceof Error ? err.stack : String(err)}\n`);
+      process.exit(1);
+    });
+  }
 }
