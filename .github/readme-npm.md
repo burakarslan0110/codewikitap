@@ -30,10 +30,6 @@ npx codewikitap install --target=cursor --scope=project --dry-run    # preview o
 
 No API keys, no cloud, no telemetry — it runs locally as an MCP server over stdio. On first agent invocation, Playwright's `chromium-headless-shell` (~30 MB) and ONNX models for retrieval (~50 MB) are cached once.
 
-### Why `npx` and not `npm install -g`?
-
-Same pattern as `npx create-react-app` — a one-shot setup command, nothing to install globally. The agent itself spawns `codewikitap` on demand via the `npx -y codewikitap` entry the wizard writes into your MCP config. If you want a global binary anyway: `npm install -g codewikitap && codewikitap install` — same wizard, you take ownership of upgrades.
-
 ## 30-second pitch
 
 When you ask your coding agent *"why isn't my `revalidatePath` clearing the cache?"*, it typically guesses from training data. CodeWiKiTap gives it the actual Next.js documentation — chunked, semantically retrieved, pinned to the exact commit your `next` dependency is on, with a citation footer it cannot strip.
