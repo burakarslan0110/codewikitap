@@ -3,7 +3,7 @@
  * pairs via a cross-encoder model (default: Xenova/ms-marco-MiniLM-L-6-v2,
  * ~22 MB quantized on first use).
  *
- * Mirrors the embedder.ts lazy-load + stdio-safe pattern. New for v2.6:
+ * Mirrors the embedder.ts lazy-load pattern. v2.6 added:
  *   - Bounded download race (RERANK_DOWNLOAD_TIMEOUT_MS, default 15s) →
  *     RerankerError('download_timeout') on overrun.
  *   - Single-flight load via in-flight loadPromise so concurrent first-
@@ -13,10 +13,16 @@
  *     without re-attempting the load (prevents thundering herd on
  *     intermittent networks).
  *
- * stdio safety: this module never writes to process.stdout. Progress events
- * from @xenova/transformers go to process.stderr via the configured logger.
- * The MCP stdio protocol contract requires stdout to remain reserved for
- * JSON-RPC frames; tests assert byte-empty stdout during score().
+ * stdio safety: the MCP stdio protocol reserves stdout for JSON-RPC frames.
+ * `@xenova/transformers` v2 writes only to stderr through its progress
+ * callback; we never replace `process.stdout.write`. (Older versions of
+ * this module installed a stderr-redirect wrapper around the global write
+ * during model load — that wrap straddled async `await` points and silently
+ * rerouted concurrent MCP SDK frames to stderr, causing JSON-RPC `-32000`
+ * timeouts on the client side. The defensive intent now lives in
+ * `tests/unit/transformers_stdout_purity.test.ts` (CI regression gate) and
+ * in `src/adapters/stdout_guard.ts:installStdoutTripwire` (opt-in runtime
+ * side-observe wrapper).
  */
 
 import { getLogger } from '../logging.js';
@@ -73,8 +79,6 @@ export class Reranker {
   /** v2.6 circuit breaker state — set on download_failed / download_timeout. */
   private lastFailureAt: number | null = null;
   private lastFailureError: RerankerError | null = null;
-
-  private restoreStdout: (() => void) | null = null;
 
   constructor(opts: RerankerOpts = {}) {
     this.modelName = opts.modelName ?? RERANK_MODEL;
@@ -140,14 +144,12 @@ export class Reranker {
   }
 
   /**
-   * Close the underlying scorer. Restores process.stdout if still wrapped
-   * AND clears the circuit-breaker state so a subsequent `getReranker()`
-   * + `close()` cycle (e.g. across vitest cases) starts clean.
+   * Close the underlying scorer AND clear the circuit-breaker state so a
+   * subsequent `getReranker()` + `close()` cycle (e.g. across vitest cases)
+   * starts clean.
    */
   async close(): Promise<void> {
     this.loadPromise = null;
-    this.restoreStdout?.();
-    this.restoreStdout = null;
     this.lastFailureAt = null;
     this.lastFailureError = null;
   }
@@ -189,15 +191,6 @@ export class Reranker {
       return result;
     } catch (err) {
       if (timer) clearTimeout(timer);
-      // ⛔ Codex critical fix: if the timer wins the race while the default
-      // loader (loadDefaultScorer) is still running, its `process.stdout.write`
-      // redirect is still installed — the in-flight pipeline await hasn't
-      // reached the restore path. Throwing now would strand the redirect and
-      // could corrupt the next MCP JSON-RPC frame. Restore unconditionally.
-      // Idempotent — restoreStdout is null when the test-seam (`scorerLoader`
-      // / injected scorer) is in use, so this is safe across paths.
-      this.restoreStdout?.();
-      this.restoreStdout = null;
       if (err instanceof RerankerError) throw err;
       const reason = err instanceof Error ? err.message : String(err);
       throw new RerankerError('download_failed', `${reason} (model=${this.modelName})`);
@@ -222,22 +215,10 @@ export class Reranker {
    * inside the tokenizer and triggers `text.split is not a function`. Driving
    * tokenizer + model directly is the documented transformers.js cross-encoder
    * pattern and keeps `text_pair` intact end-to-end.
-   * Mirrors embedder.ts:loadDefaultEncoder for the stdout-redirect wrapper.
    */
   private async loadDefaultScorer(): Promise<ScorerImpl> {
     const log = getLogger();
-
-    // ⛔ stdio safety: capture+redirect process.stdout.write during the load.
-    // Mirrors embedder.ts pattern.
-    const originalWrite = process.stdout.write.bind(process.stdout);
-    this.restoreStdout = () => {
-      process.stdout.write = originalWrite;
-    };
-    type WriteFn = typeof process.stdout.write;
-    process.stdout.write = ((chunk: unknown, encoding?: unknown, cb?: unknown): boolean => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (process.stderr.write as any)(chunk, encoding, cb);
-    }) as WriteFn;
+    log.info('reranker.load.start', { model: this.modelName });
 
     interface TransformersModule {
       AutoTokenizer: { from_pretrained: (name: string, opts?: unknown) => Promise<unknown> };
@@ -248,7 +229,6 @@ export class Reranker {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mod = (await import('@xenova/transformers')) as any;
     } catch (err) {
-      this.restoreStdout?.();
       const reason = err instanceof Error ? err.message : String(err);
       throw new RerankerError(
         'download_failed',
@@ -282,16 +262,12 @@ export class Reranker {
         progress_callback: progressCallback,
       });
     } catch (err) {
-      this.restoreStdout?.();
       const reason = err instanceof Error ? err.message : String(err);
       throw new RerankerError(
         'download_failed',
         `Failed to download or initialize reranker model ${modelName}: ${reason}`,
       );
     }
-    // Model loaded successfully — restore stdout.
-    this.restoreStdout?.();
-    this.restoreStdout = null;
 
     return {
       async score(query: string, candidates: string[]): Promise<number[]> {

@@ -567,10 +567,28 @@ Defaults are sufficient for most cases. The variables you might actually reach f
 | `CODEWIKI_DISABLE_WATCH` | off | Don't watch manifest changes (CI/CD). |
 | `CODEWIKI_DISABLE_KG` | off | Skip knowledge graph; `find_neighbors` is unregistered. |
 | `CODEWIKI_DISABLE_PREWARM` | off | Skip startup auto-prewarm. |
+| `CODEWIKI_DISABLE_MODEL_WARMUP` | off | Skip boot-time embedder + reranker warmup (cold-load shifts to first `find_chunks`). |
+| `CODEWIKI_STDOUT_TRIPWIRE` | off | Diagnostic side-observe wrapper around stdout; warns on non-JSON-RPC bytes. Never reroutes. |
+| `CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS` | `180000` | Wallclock cap on the boot-time `npx playwright install`. |
+| `CODEWIKI_PREWARM_START_DELAY_MS` | `2000` | Prewarmer waits this long after boot before its first dequeue. |
 | `CODEWIKI_FORCE_NO_BM25` | off | Vector-only mode (BM25 branch skipped). |
 | `CODEWIKI_RERANK_TOP_N` | `50` | Candidate count passed to the reranker. |
 
 Full reference is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Troubleshooting: MCP `-32000` on cold start
+
+When the very first run of `npx codewikitap` shows the MCP client reporting `-32000` and reconnecting:
+
+1. The cause is usually a stalled or denied `npx playwright install --only-shell chromium` inside the codewikitap process (corporate proxy, offline sandbox, npm registry unreachable). Run the install manually once:
+
+   ```
+   npx playwright install --only-shell chromium
+   ```
+
+2. Then restart codewikitap. Subsequent runs use the on-disk binary and reach `transport.connect()` within milliseconds.
+
+3. If the install fails and you need the server to come up immediately with browser-using tools degraded, set `CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS=5000`. The MCP handshake succeeds and browser tools (`get_page`, `find_chunks` cache-miss, `find_neighbors` cache-miss, `request_indexing`) return a structured `rate_limited` retry envelope until the install completes. Non-browser tools (`list_project_dependencies`, `resolve_repo`) work unaffected.
 
 ---
 

@@ -93,6 +93,10 @@ export interface BuiltServer {
   graphQuery: GraphQuery;
   /** v2.8: surfaced so the prewarmer wires onto the SAME Indexer instance the tools use (single-flight collapse). */
   indexer: Indexer;
+  /** v3 (MCP -32000 fix RC1 L3): surfaced for the boot-time warmupModels() background call in src/index.ts:main(). */
+  embedder: Embedder;
+  /** v3 (MCP -32000 fix RC1 L3): surfaced for the boot-time warmupModels() background call in src/index.ts:main(). */
+  reranker: Reranker;
   toolNames: string[];
 }
 
@@ -148,5 +152,5 @@ export async function buildServer(opts: BuildServerOptions): Promise<BuiltServer
     ...(KG_DISABLED ? [] : ['find_neighbors']),
     'request_indexing',
   ];
-  return { server, cache, client, retriever, graphQuery, indexer, toolNames };
+  return { server, cache, client, retriever, graphQuery, indexer, embedder, reranker, toolNames };
 }

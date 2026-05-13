@@ -116,12 +116,48 @@ export const PREWARM_MAX_DEPS = (() => {
 
 /**
  * Delay (ms) between Prewarmer.start() and the first dequeue. Lets the stdio
- * handshake settle without contending with the bg worker. Default 0 — start
- * draining immediately via setImmediate. Allows 0 explicitly.
+ * handshake settle without contending with the bg worker. Default 2000 (v3
+ * fix for the MCP `-32000` reconnect bug — RC1 defense L5; bumped from 0).
+ * Allows 0 explicitly via env override `CODEWIKI_PREWARM_START_DELAY_MS=0` to
+ * restore the v2.8 immediate-drain behavior for operators who need it.
  */
 export const PREWARM_START_DELAY_MS = (() => {
   const raw = process.env.CODEWIKI_PREWARM_START_DELAY_MS;
-  if (!raw) return 0;
+  if (raw === undefined) return 2000;
   const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n >= 0 ? n : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 2000;
 })();
+
+/**
+ * MCP `-32000` reconnect fix (RC1 defense L3):
+ * Skip the boot-time `warmupModels({ embedder, reranker })` call in
+ * `src/index.ts:main()`. Off by default. Disabling shifts the model-load
+ * latency back onto the first user `find_chunks` call (still safe since the
+ * stdout-wrap was deleted in v3); the warmup is purely a perf optimization.
+ */
+export const DISABLE_MODEL_WARMUP = envBool('CODEWIKI_DISABLE_MODEL_WARMUP');
+
+/**
+ * MCP `-32000` reconnect fix (RC1 defense L4):
+ * Install a SIDE-OBSERVE wrapper around `process.stdout.write` that ALWAYS
+ * forwards bytes to the real stdout AND additionally emits a warn-log when
+ * a written chunk does not start with `{` or `\n`. Off by default —
+ * diagnostic-only. Never reroutes; safe to leave installed in production
+ * for forensics. Implemented in `src/adapters/stdout_guard.ts`.
+ */
+export const STDOUT_TRIPWIRE = envBool('CODEWIKI_STDOUT_TRIPWIRE');
+
+/**
+ * MCP `-32000` reconnect fix (RC2 defense L7):
+ * Wallclock timeout (ms) for the `npx playwright install --only-shell
+ * chromium` subprocess invoked by `runInstall` in `src/index.ts`. Without
+ * this, a stalled npm fetch could leave `playwrightReady` pending forever;
+ * browser-using tools would respond `retry` indefinitely. With the
+ * timeout, the promise resolves or rejects within a bounded window and
+ * tools flip to a clear `playwright_unavailable`-rooted retry envelope.
+ * Default 180000 ms (3 min); kills the child with SIGTERM on overrun.
+ */
+export const PLAYWRIGHT_INSTALL_TIMEOUT_MS = envNumber(
+  'CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS',
+  180_000,
+);

@@ -7,10 +7,16 @@
  * onward triggers the load). Tests substitute a mock encoder via the
  * constructor's `encoderImpl` option to avoid the ~30 MB model download in CI.
  *
- * stdio safety: this module never writes to process.stdout. Progress events
- * from the underlying library go to process.stderr via the configured logger.
- * The MCP stdio protocol contract requires stdout to remain reserved for
- * JSON-RPC frames; tests assert byte-empty stdout during encode.
+ * stdio safety: the MCP stdio protocol reserves stdout for JSON-RPC frames.
+ * `@xenova/transformers` v2 writes only to stderr through its progress
+ * callback; we never replace `process.stdout.write`. (Older versions of this
+ * module installed a stderr-redirect wrapper around the global write during
+ * model load — that wrap straddled async `await` points and silently
+ * rerouted concurrent MCP SDK frames to stderr, causing JSON-RPC `-32000`
+ * timeouts on the client side. The defensive intent now lives in
+ * `tests/unit/transformers_stdout_purity.test.ts` (CI regression gate) and
+ * in `src/adapters/stdout_guard.ts:installStdoutTripwire` (opt-in runtime
+ * side-observe wrapper).
  */
 
 import { getLogger } from '../logging.js';
@@ -48,7 +54,6 @@ export class Embedder {
   private readonly modelDim: number;
   private encoderPromise: Promise<EncoderImpl> | null = null;
   private readonly injectedEncoder: EncoderImpl | null;
-  private restoreStdout: (() => void) | null = null;
 
   constructor(opts: EmbedderOpts = {}) {
     this.modelName = opts.modelName ?? EMBED_MODEL;
@@ -81,24 +86,7 @@ export class Embedder {
    */
   private async loadDefaultEncoder(): Promise<EncoderImpl> {
     const log = getLogger();
-
-    // ⛔ stdio safety (defense-in-depth): the MCP stdio protocol reserves
-    // stdout for JSON-RPC frames. @xenova/transformers v2 does not write to
-    // stdout under our config, but a future release that adds console.log
-    // would silently corrupt the handshake. Capture-and-redirect process.
-    // stdout.write for the duration of model load. The wrapper is restored
-    // by Embedder.close(); tests can also force restoration.
-    const originalWrite = process.stdout.write.bind(process.stdout);
-    this.restoreStdout = () => {
-      process.stdout.write = originalWrite;
-    };
-    type WriteFn = typeof process.stdout.write;
-    process.stdout.write = ((chunk: unknown, encoding?: unknown, cb?: unknown): boolean => {
-      // Forward to stderr so any stray write becomes a visible warning, not
-      // a corrupted JSON-RPC frame.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (process.stderr.write as any)(chunk, encoding, cb);
-    }) as WriteFn;
+    log.info('embedder.load.start', { model: this.modelName });
 
     let mod: { pipeline: (task: string, model: string, opts?: unknown) => Promise<unknown> };
     try {
@@ -108,7 +96,6 @@ export class Embedder {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mod = (await import('@xenova/transformers')) as any;
     } catch (err) {
-      this.restoreStdout?.();
       const reason = err instanceof Error ? err.message : String(err);
       throw new EmbedderError(
         'download_failed',
@@ -137,17 +124,12 @@ export class Embedder {
         progress_callback: progressCallback,
       });
     } catch (err) {
-      this.restoreStdout?.();
       const reason = err instanceof Error ? err.message : String(err);
       throw new EmbedderError(
         'download_failed',
         `Failed to download or initialize embedding model ${modelName}: ${reason}`,
       );
     }
-    // Model loaded successfully — restore stdout. Future encode() calls do
-    // not write to stdout in any version of @xenova/transformers we know of.
-    this.restoreStdout?.();
-    this.restoreStdout = null;
 
     return {
       async encode(texts: string[]): Promise<Float32Array[]> {
@@ -199,11 +181,9 @@ export class Embedder {
     return vectors;
   }
 
-  /** Close the underlying encoder. Restores process.stdout if still wrapped. */
+  /** Close the underlying encoder. */
   async close(): Promise<void> {
     this.encoderPromise = null;
-    this.restoreStdout?.();
-    this.restoreStdout = null;
   }
 }
 

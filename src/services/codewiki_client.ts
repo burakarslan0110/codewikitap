@@ -29,6 +29,7 @@ import {
   CodeWikiError,
   Fallback,
   PageIndexEntry,
+  PlaywrightUnavailableError,
 } from '../types.js';
 import {
   CODEWIKI_BASE_URL,
@@ -286,19 +287,35 @@ export class CodeWikiClient {
   private async defaultFetchPage(repo: string): Promise<ExtractionResult> {
     await this.respectRateLimit();
     const url = `${CODEWIKI_BASE_URL}${repo}`;
-    return this.driver.withPage(async (page: Page) => {
-      try {
-        await page.goto(url, { waitUntil: 'networkidle' });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        throw new CodeWikiError('upstream_unavailable', `failed to load ${url}: ${msg}`);
+    try {
+      return await this.driver.withPage(async (page: Page) => {
+        try {
+          await page.goto(url, { waitUntil: 'networkidle' });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          throw new CodeWikiError('upstream_unavailable', `failed to load ${url}: ${msg}`);
+        }
+        const result = await extractFromPage(page);
+        // Empty-shell vs explicit not-found is now distinguished by the
+        // extractor itself. We pass both through; callers (probe / getPage)
+        // map emptyShell to rate_limited and notFound to no_docs.
+        return result;
+      });
+    } catch (err) {
+      // RC2 (MCP -32000 fix): the Playwright install promise is still
+      // pending or has rejected. Surface as a structured `rate_limited`
+      // envelope (retryAfterSeconds = err.retryAfterSeconds ?? 30) so the
+      // existing tool surface ALREADY handles the case — clients see a
+      // retry hint, not a thrown exception.
+      if (err instanceof PlaywrightUnavailableError) {
+        throw new CodeWikiError(
+          'rate_limited',
+          `Playwright is not yet available: ${err.message}`,
+          err.retryAfterSeconds ?? 30,
+        );
       }
-      const result = await extractFromPage(page);
-      // Empty-shell vs explicit not-found is now distinguished by the
-      // extractor itself. We pass both through; callers (probe / getPage)
-      // map emptyShell to rate_limited and notFound to no_docs.
-      return result;
-    });
+      throw err;
+    }
   }
 
   private async respectRateLimit(): Promise<void> {

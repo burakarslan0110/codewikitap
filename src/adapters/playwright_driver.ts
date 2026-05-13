@@ -13,6 +13,7 @@
 
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import { MAX_CONCURRENT_PAGES, PAGE_LOAD_TIMEOUT_MS } from '../config.js';
+import { PlaywrightUnavailableError } from '../types.js';
 
 export const STEALTH_INIT_SCRIPT = `
 // 1. webdriver flag
@@ -53,6 +54,19 @@ const REALISTIC_USER_AGENT =
 export interface PlaywrightDriverOptions {
   maxConcurrentPages?: number;
   channel?: 'chromium' | 'chromium-headless-shell';
+  /**
+   * RC2 (MCP -32000 fix): a promise that resolves once Playwright's
+   * `chromium-headless-shell` binary is verified launchable. `withPage`
+   * awaits this BEFORE calling `chromium.launch` so the MCP `initialize`
+   * handshake never blocks on the install. When the promise rejects, the
+   * driver surfaces `PlaywrightUnavailableError` from `withPage`; the
+   * `CodeWikiClient.defaultFetchPage` boundary remaps that to a
+   * `rate_limited` envelope so MCP tools already handle the case.
+   *
+   * Defaults to `Promise.resolve()` (no gate) so the no-arg shape used
+   * by tests and v1 callers continues to work unchanged.
+   */
+  readyPromise?: Promise<void>;
 }
 
 export class PlaywrightDriver {
@@ -62,6 +76,7 @@ export class PlaywrightDriver {
 
   private readonly maxConcurrentPages: number;
   private readonly channel: 'chromium' | 'chromium-headless-shell';
+  private readonly readyPromise: Promise<void>;
 
   // Semaphore: counter + FIFO queue of waiting callers.
   private slotsAvailable: number;
@@ -71,6 +86,14 @@ export class PlaywrightDriver {
     this.maxConcurrentPages = opts.maxConcurrentPages ?? MAX_CONCURRENT_PAGES;
     this.channel = opts.channel ?? 'chromium-headless-shell';
     this.slotsAvailable = this.maxConcurrentPages;
+    this.readyPromise = opts.readyPromise ?? Promise.resolve();
+    // Attach a SILENCE observer immediately. Without this, the time window
+    // between construction and the first `ensureLaunched` await produces
+    // an "unhandled rejection" warning when callers pass a pre-rejected
+    // promise. The silence handler observes the rejection but does not
+    // consume it — `ensureLaunched` re-awaits the SAME promise and still
+    // sees the rejection from there.
+    this.readyPromise.catch(() => { /* observed via ensureLaunched */ });
   }
 
   get isLaunched(): boolean {
@@ -107,6 +130,17 @@ export class PlaywrightDriver {
 
   private async ensureLaunched(): Promise<void> {
     if (this.browser) return;
+    // RC2: gate on the install-readiness promise BEFORE launching chromium.
+    // Rejection surfaces as PlaywrightUnavailableError so the client layer
+    // can remap to a `rate_limited` envelope.
+    try {
+      await this.readyPromise;
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new PlaywrightUnavailableError(
+        `Playwright is not yet available: ${reason}`,
+      );
+    }
     if (this.launchPromise) {
       await this.launchPromise;
       return;
@@ -158,9 +192,19 @@ export class PlaywrightDriver {
 let _instance: PlaywrightDriver | null = null;
 let _signalsRegistered = false;
 
-export function getPlaywrightDriver(): PlaywrightDriver {
+/**
+ * Singleton accessor.
+ *
+ * The optional `readyPromise` lets `src/index.ts` thread the parallel
+ * `ensurePlaywright()` install (RC2 fix) into the driver before any
+ * `withPage` call lands. The argument is honored ONLY on the FIRST call —
+ * subsequent calls return the existing instance regardless of what they
+ * pass (no silent reconstruction). Pass nothing for the legacy no-gate
+ * behavior.
+ */
+export function getPlaywrightDriver(readyPromise?: Promise<void>): PlaywrightDriver {
   if (!_instance) {
-    _instance = new PlaywrightDriver();
+    _instance = new PlaywrightDriver(readyPromise ? { readyPromise } : {});
     if (!_signalsRegistered) {
       _signalsRegistered = true;
       const closer = () => {
@@ -174,4 +218,9 @@ export function getPlaywrightDriver(): PlaywrightDriver {
     }
   }
   return _instance;
+}
+
+/** Test-only: clear the singleton so each test gets a fresh instance. */
+export function resetPlaywrightDriverForTesting(): void {
+  _instance = null;
 }

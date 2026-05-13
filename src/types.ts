@@ -142,7 +142,8 @@ export type CodeWikiErrorKind =
   | 'no_docs'
   | 'codewiki_dom_changed'
   | 'rate_limited'
-  | 'upstream_unavailable';
+  | 'upstream_unavailable'
+  | 'playwright_unavailable';
 
 export class CodeWikiError extends Error {
   readonly kind: CodeWikiErrorKind;
@@ -153,6 +154,24 @@ export class CodeWikiError extends Error {
     this.name = 'CodeWikiError';
     this.kind = kind;
     this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+/**
+ * RC2 (MCP -32000 reconnect fix): Playwright's `chromium-headless-shell`
+ * binary is missing or the parallel `ensurePlaywright` install is still
+ * in flight / has rejected. Browser-dependent tools (`get_page`,
+ * `list_pages`, `find_chunks` cache-miss, `find_neighbors` cache-miss,
+ * `request_indexing`) surface this; non-browser tools
+ * (`list_project_dependencies`, `resolve_repo`) are unaffected. The
+ * `codewiki_client.defaultFetchPage` boundary catches this and remaps it
+ * to `CodeWikiError('rate_limited', ..., retryAfterSeconds: 30)` so the
+ * existing tool envelopes already know how to respond.
+ */
+export class PlaywrightUnavailableError extends CodeWikiError {
+  constructor(message: string, retryAfterSeconds: number = 30) {
+    super('playwright_unavailable', message, retryAfterSeconds);
+    this.name = 'PlaywrightUnavailableError';
   }
 }
 

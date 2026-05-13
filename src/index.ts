@@ -16,12 +16,21 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
 import { buildServer } from './server.js';
 import { getPlaywrightDriver } from './adapters/playwright_driver.js';
-import { getLogger } from './logging.js';
-import { LOG_DIR, DISABLE_PREWARM } from './config.js';
+import { installStdoutTripwire } from './adapters/stdout_guard.js';
+import { getLogger, type Logger } from './logging.js';
+import {
+  LOG_DIR,
+  DISABLE_PREWARM,
+  DISABLE_MODEL_WARMUP,
+  STDOUT_TRIPWIRE,
+  PLAYWRIGHT_INSTALL_TIMEOUT_MS,
+} from './config.js';
 import { Cache } from './services/cache.js';
 import { VectorStore } from './services/vector_store.js';
 import { EMBED_MODEL, EMBED_MODEL_DIM, LEGACY_EMBED_MODEL_DEFAULT } from './config_rag.js';
 import { buildPrewarmer, type Prewarmer } from './services/prewarmer.js';
+import type { Embedder } from './adapters/embedder.js';
+import type { Reranker } from './adapters/reranker.js';
 
 const SENTINEL_PATH = path.join(LOG_DIR, '.playwright-ok');
 
@@ -93,23 +102,99 @@ async function ensurePlaywright(): Promise<void> {
   log.info('playwright-ready-after-install');
 }
 
-function runInstall(): Promise<void> {
+/**
+ * Spawns `npx playwright install --only-shell chromium`.
+ *
+ * RC2 defense L7: bounded by a wallclock timeout (default 180000 ms, env
+ * `CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS`). On overrun, the child is
+ * killed with SIGTERM and the promise rejects with a clear error. Without
+ * this, a stalled npm fetch could leave the install promise pending
+ * indefinitely; the parallel-bootstrap fix in `main()` would then surface
+ * `playwright_unavailable` retry envelopes forever instead of failing
+ * fast with an actionable diagnostic.
+ *
+ * The child's stdio is `['ignore', 'pipe', 'inherit']`: stdin ignored,
+ * stdout PIPED then forwarded to our stderr, stderr inherited (the parent
+ * process's stderr). stdout is NEVER inherited — the MCP stdio protocol
+ * reserves it for JSON-RPC frames (Codex finding: 'inherit' on stdout
+ * corrupts the initialize handshake on first run).
+ */
+export function runInstall(timeoutMs: number = PLAYWRIGHT_INSTALL_TIMEOUT_MS): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    // ⛔ MCP stdio reserves stdout for JSON-RPC frames. The installer's stdout
-    // MUST be piped (or ignored) and forwarded to stderr — never inherited
-    // (Codex finding: that corrupts the initialize handshake on first run).
     const child = spawn('npx', ['playwright', 'install', '--only-shell', 'chromium'], {
       stdio: ['ignore', 'pipe', 'inherit'],
     });
+    let settled = false;
+    const settle = (fn: () => void): void => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      fn();
+    };
+    const timer: NodeJS.Timeout = setTimeout(() => {
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        /* child may already be dead */
+      }
+      settle(() => reject(new Error(`playwright install timed out after ${timeoutMs}ms`)));
+    }, timeoutMs);
+    timer.unref?.();
     child.stdout?.on('data', (chunk: Buffer) => {
       process.stderr.write(chunk);
     });
-    child.on('error', reject);
+    child.on('error', (err) => settle(() => reject(err)));
     child.on('exit', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`playwright install exited with code ${code}`));
+      if (code === 0) settle(resolve);
+      else settle(() => reject(new Error(`playwright install exited with code ${code}`)));
     });
   });
+}
+
+/**
+ * MCP `-32000` reconnect fix (RC1 defense L3):
+ *
+ * Background warmup of the embedder + reranker after `transport.connect()`
+ * has resolved. Called WITHOUT `await` from `main()` — its only side effect
+ * is loading the @xenova/transformers models on disk so the first user
+ * `find_chunks` / `find_neighbors` call does not eat the cold-load latency.
+ *
+ * Both legs are wrapped in try/catch and never throw out to the caller.
+ * Failures surface as a single `warmup_failed` warn-log; the cold load
+ * runs later from the tool handler.
+ *
+ * Skipped entirely when `CODEWIKI_DISABLE_MODEL_WARMUP=1`.
+ */
+export async function warmupModels(deps: {
+  embedder: Embedder;
+  reranker: Reranker;
+  log: Logger;
+}): Promise<void> {
+  const { embedder, reranker, log } = deps;
+  if (DISABLE_MODEL_WARMUP) {
+    log.info('warmup_skipped', { reason: 'CODEWIKI_DISABLE_MODEL_WARMUP' });
+    return;
+  }
+  log.info('warmup.embedder.started');
+  try {
+    await embedder.encode(['__codewikitap_warmup__']);
+    log.info('warmup.embedder.done');
+  } catch (err) {
+    log.warn('warmup_failed', {
+      model: 'embedder',
+      reason: err instanceof Error ? err.message : String(err),
+    });
+  }
+  log.info('warmup.reranker.started');
+  try {
+    await reranker.score('__codewikitap_warmup__', ['__codewikitap_warmup__']);
+    log.info('warmup.reranker.done');
+  } catch (err) {
+    log.warn('warmup_failed', {
+      model: 'reranker',
+      reason: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 /**
@@ -180,14 +265,34 @@ export async function runEmbedderAutoReindex(): Promise<void> {
 
 async function main(): Promise<void> {
   const log = getLogger();
-  try {
-    await ensurePlaywright();
-  } catch (err) {
-    log.error('playwright-bootstrap-failed', { reason: err instanceof Error ? err.message : String(err) });
-    process.exit(1);
-  }
-
   const cwd = process.cwd();
+
+  // RC2 (MCP -32000 fix): launch Playwright bootstrap IN PARALLEL with the
+  // rest of startup. The promise is passed into `getPlaywrightDriver` so
+  // `driver.withPage` (called by the tool handlers) gates its
+  // `chromium.launch` on it. The MCP `initialize` handshake reaches the
+  // wire within milliseconds of process start regardless of Playwright
+  // state — clients no longer time out with `-32000` on cold installs.
+  //
+  // The catch handler swallows rejections so an unobserved
+  // `playwrightReady.catch(...)` does not become an unhandled rejection.
+  // The driver re-awaits the promise inside `ensureLaunched` and surfaces
+  // `PlaywrightUnavailableError` from `withPage`; the `CodeWikiClient`
+  // boundary remaps that to a `rate_limited` envelope.
+  const playwrightReady: Promise<void> = ensurePlaywright().catch((err) => {
+    log.error('playwright-bootstrap-failed', {
+      reason: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  });
+
+  // RC1 defense L4: install the side-observe stdout tripwire BEFORE
+  // `transport.connect()` so any non-JSON-RPC byte written during boot is
+  // captured. Off by default — only engaged via `CODEWIKI_STDOUT_TRIPWIRE=1`.
+  if (STDOUT_TRIPWIRE) {
+    installStdoutTripwire(log);
+    log.info('stdout_tripwire_installed');
+  }
 
   // v2.5: embedder model-swap auto-reindex. Runs BEFORE buildServer so the
   // first MCP request always sees a clean post-swap state. Three branches:
@@ -200,6 +305,28 @@ async function main(): Promise<void> {
   await runEmbedderAutoReindex();
 
   const built = await buildServer({ cwd });
+
+  // RC2 (MCP -32000 fix): wire the parallel `playwrightReady` promise into
+  // the driver singleton BEFORE any tool call could land. `withPage` awaits
+  // the promise inside `ensureLaunched` and surfaces
+  // `PlaywrightUnavailableError` on rejection; the `CodeWikiClient`
+  // boundary remaps that to `rate_limited`.
+  const driver = getPlaywrightDriver(playwrightReady);
+
+  // RC2 (MCP -32000 fix): construct and connect the stdio transport BEFORE
+  // any background work begins. `transport.start()` is trivial — it just
+  // attaches a stdin listener — so the MCP `initialize` handshake reaches
+  // the wire within milliseconds of process start regardless of Playwright
+  // install state.
+  const transport = new StdioServerTransport();
+  await built.server.connect(transport);
+  log.info('server-ready', { tools: built.toolNames });
+
+  // RC1 defense L3: kick off model warmup in background AFTER the handshake
+  // has been advertised. The wrap that used to corrupt JSON-RPC frames is
+  // gone, so warmup is purely a perf optimization (avoids cold-load latency
+  // on the first user `find_chunks`). Failures emit a warn-log only.
+  void warmupModels({ embedder: built.embedder, reranker: built.reranker, log });
 
   // v2.8: scanProject() is hoisted out of the watcher block so the prewarmer
   // works independently of CODEWIKI_DISABLE_WATCH (Codex review iter 1 #3).
@@ -277,7 +404,6 @@ async function main(): Promise<void> {
   // prewarmer.stop drains the bg worker → watcher.stop closes chokidar →
   // driver.close releases Playwright pages → cache.close (sync) tears down
   // SQLite last, against a quiescent handle.
-  const driver = getPlaywrightDriver();
   const closer = async (signal: string): Promise<void> => {
     log.info('shutting-down', { signal });
     try {
@@ -291,10 +417,6 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', () => { void closer('SIGINT'); });
   process.on('SIGTERM', () => { void closer('SIGTERM'); });
-
-  const transport = new StdioServerTransport();
-  await built.server.connect(transport);
-  log.info('server-ready', { tools: built.toolNames });
 }
 
 // Only run main() when this file is invoked as the bin entry — never as
