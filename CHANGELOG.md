@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-05-13
+
+### Fixed
+
+- pin Claude marketplace plugin version + add alt-install methods
+
+### Notes
+
+- Bump Claude plugin version to 0.5.0
+
 ## [0.5.0] - 2026-05-13
 
 ### Added
