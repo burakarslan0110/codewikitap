@@ -464,6 +464,24 @@ npx codewikitap install --target=cursor --scope=project --dry-run    # preview o
 
 Available `--target` IDs: `claude-code`, `cursor`, `codex-cli`, `gemini-cli`, `qwen-code`, `opencode`, `windsurf`, `antigravity`. Available `--scope` values: `project`, `user` (some targets are user-only — the wizard auto-resolves).
 
+### Alternative installation methods
+
+Beyond `npx codewikitap install`, you can wire codewikitap in by hand or via a CLI-native plugin command where one exists. Full per-CLI config blocks live below.
+
+| CLI | Method | Command / Path |
+|---|---|---|
+| Claude Code | Plugin marketplace | `/plugin marketplace add burakarslan0110/codewikitap` → `/plugin install codewikitap@burakarslan0110-codewikitap` |
+| Claude Code | Manual JSON | `~/.claude/mcp.json` or project `.mcp.json` ([block](#claude-code)) |
+| Cursor | Manual JSON | `~/.cursor/mcp.json` or `<project>/.cursor/mcp.json` ([block](#cursor)) |
+| Codex CLI | Manual TOML | `~/.codex/config.toml` — no first-party marketplace yet ([block](#codex-cli)) |
+| Gemini CLI | Manual JSON | `~/.gemini/settings.json` — no first-party marketplace yet ([block](#gemini-cli)) |
+| Qwen Code | Manual JSON | `~/.qwen/settings.json` or project equivalent ([block](#qwen-code)) |
+| opencode | Manual JSON | `opencode.json` or `~/.config/opencode/opencode.json` ([block](#opencode)) |
+| Windsurf | Manual JSON | `~/.codeium/windsurf/mcp_config.json` ([block](#windsurf)) |
+| Antigravity | Manual JSON | `~/.gemini/antigravity/mcp_config.json` ([block](#antigravity)) |
+
+All paths point to the canonical config locations documented below. The interactive wizard above is recommended — it handles diff/backup/atomic-write for you.
+
 ### Claude Code
 
 `~/.claude/mcp.json` (user-level) or `.mcp.json` at the project root:

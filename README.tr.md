@@ -465,6 +465,25 @@ npx codewikitap install --target=cursor --scope=project --dry-run    # önizleme
 
 Geçerli `--target` değerleri: `claude-code`, `cursor`, `codex-cli`, `gemini-cli`, `qwen-code`, `opencode`, `windsurf`, `antigravity`. Geçerli `--scope` değerleri: `project`, `user` (bazı hedefler user-only — sihirbaz otomatik seçer).
 
+<a id="alternatif-kurulum"></a>
+### Alternatif kurulum yöntemleri
+
+`npx codewikitap install`'in yanı sıra, codewikitap'i elle de bağlayabilirsin — veya bazı CLI'larda mevcut native plugin komutuyla. Tüm CLI'lara özel config blokları aşağıda.
+
+| CLI | Yöntem | Komut / Yol |
+|---|---|---|
+| Claude Code | Plugin marketplace | `/plugin marketplace add burakarslan0110/codewikitap` → `/plugin install codewikitap@burakarslan0110-codewikitap` |
+| Claude Code | Manuel JSON | `~/.claude/mcp.json` veya proje kökünde `.mcp.json` ([blok](#claude-code)) |
+| Cursor | Manuel JSON | `~/.cursor/mcp.json` veya `<proje>/.cursor/mcp.json` ([blok](#cursor)) |
+| Codex CLI | Manuel TOML | `~/.codex/config.toml` — ilk-taraf marketplace yok ([blok](#codex-cli)) |
+| Gemini CLI | Manuel JSON | `~/.gemini/settings.json` — ilk-taraf marketplace yok ([blok](#gemini-cli)) |
+| Qwen Code | Manuel JSON | `~/.qwen/settings.json` veya proje karşılığı ([blok](#qwen-code)) |
+| opencode | Manuel JSON | `opencode.json` veya `~/.config/opencode/opencode.json` ([blok](#opencode)) |
+| Windsurf | Manuel JSON | `~/.codeium/windsurf/mcp_config.json` ([blok](#windsurf)) |
+| Antigravity | Manuel JSON | `~/.gemini/antigravity/mcp_config.json` ([blok](#antigravity)) |
+
+Tüm yollar aşağıda dokümante edilen kanonik config konumlarını gösterir. Yukarıdaki interaktif sihirbaz önerilen yol — diff/backup/atomik-yazma'yı senin için halleder.
+
 ### Claude Code
 
 `~/.claude/mcp.json` (user level) veya proje kökünde `.mcp.json`:

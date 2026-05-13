@@ -46,6 +46,13 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Enforce marketplace version sync (drift guard)
+        # Defense-in-depth: prepack hook syncs the files at pack time, but if
+        # a future pnpm release changes hook ordering, this test catches drift
+        # before publish. Fails CI if package.json.version drifts from
+        # .claude-plugin/marketplace.json or plugin.json.
+        run: pnpm test --run tests/unit/marketplace_version_sync.test.ts
+
       - name: Swap in the npm landing README
         # README.md on main is the long GitHub version. npm visitors get a
         # shorter install-first variant. Swap MUST happen before verify-publish

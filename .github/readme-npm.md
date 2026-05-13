@@ -30,6 +30,17 @@ npx codewikitap install --target=cursor --scope=project --dry-run    # preview o
 
 No API keys, no cloud, no telemetry — it runs locally as an MCP server over stdio. On first agent invocation, Playwright's `chromium-headless-shell` (~30 MB) and ONNX models for retrieval (~50 MB) are cached once.
 
+### Alternative installation methods
+
+<details>
+<summary>Not using the wizard? Click for marketplace + manual config paths.</summary>
+
+- **Claude Code marketplace:** `/plugin marketplace add burakarslan0110/codewikitap` → `/plugin install codewikitap@burakarslan0110-codewikitap`
+- **Manual config:** see the [full table in the GitHub README](https://github.com/burakarslan0110/codewikitap#alternative-installation-methods) for every supported CLI (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity).
+- **Codex CLI & Gemini CLI:** no first-party marketplace today — use `npx codewikitap install` or paste the config block from the GitHub README.
+
+</details>
+
 ## 30-second pitch
 
 When you ask your coding agent *"why isn't my `revalidatePath` clearing the cache?"*, it typically guesses from training data. CodeWiKiTap gives it the actual Next.js documentation — chunked, semantically retrieved, pinned to the exact commit your `next` dependency is on, with a citation footer it cannot strip.

@@ -128,6 +128,17 @@ After publishing to npm, users with the self-hosted plugin marketplace installed
 
 For the official `anthropics/claude-plugins-official` marketplace, the update flow is the same — the marketplace.json `npm` source picks up the new published version automatically. Maintainers handle official marketplace submission and re-submission against Anthropic's submission form (`https://claude.ai/settings/plugins/submit`, `https://platform.claude.com/plugins/submit`, or `https://clau.de/plugin-directory-submission`).
 
+### Recommended GitHub Topics
+
+Gemini CLI and Codex CLI do not have first-party plugin marketplaces, so discoverability lives in npm keywords (see `package.json.keywords`) and GitHub repo topics. Keep the following set in the repo settings (Settings → About → Topics):
+
+- `mcp-server` — discoverable by anyone browsing MCP servers
+- `model-context-protocol` — protocol-level tag
+- `claude-code`, `cursor`, `codex-cli`, `gemini-cli` — per-CLI tags that mirror the keywords list
+- `google-codewiki` — data-source tag for users searching by upstream
+
+Updating this list is a maintainer action (web UI only — GitHub does not version-control topics in repo files). Sync any keyword change to `package.json.keywords` here as well so both surfaces stay aligned.
+
 ## Pull Requests
 
 - Branch from `main`.

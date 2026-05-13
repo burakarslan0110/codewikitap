@@ -16,7 +16,7 @@
         "package": "codewikitap"
       },
       "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents. 7 tools, hybrid sparse+dense retrieval, knowledge graph traversal, always-on citation enforcement.",
-      "version": "0.3.0",
+      "version": "0.5.0",
       "category": "documentation",
       "tags": [
         "mcp",

@@ -34,6 +34,7 @@
     "eval": "node ./node_modules/tsx/dist/cli.mjs scripts/eval.ts",
     "verify-publish": "node scripts/verify-publish.mjs",
     "postinstall": "node scripts/postinstall.mjs",
+    "prepack": "node scripts/sync-marketplace-version.mjs",
     "prepublishOnly": "node ./node_modules/typescript/bin/tsc"
   },
   "keywords": [
@@ -46,7 +47,10 @@
     "claude-code",
     "cursor",
     "codex",
+    "codex-cli",
     "gemini-cli",
+    "mcp-server",
+    "mcp-registry",
     "knowledge-graph",
     "hybrid-retrieval",
     "plugin",
