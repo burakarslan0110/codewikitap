@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-05-13
+
+### Fixed
+
+- eliminate -32000 reconnect from stdout-wrap + slow playwright bootstrap
+
+### Notes
+
+- use new banner.png in main READMEs (was reverted to logo.png)
+- bust GitHub camo cache (?v=2) so updated banner shows
+- fix dotted-İ in disclaimer, add bottom-right credit
+- Show install command in README and README.tr
+- swap logo for centered Google-styled CodeWikiTap banner
+- Add codewikitap banner image
+- rename CodeWiKiTap -> CodeWikiTap to match banner
+- replace logo with wide CodeWikiTap banner
+- Remove code block for 'npx codewikitap'
+
 ## [0.4.2] - 2026-05-12
 
 ### Notes
