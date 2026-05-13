@@ -18,6 +18,7 @@ import { buildServer } from './server.js';
 import { getPlaywrightDriver } from './adapters/playwright_driver.js';
 import { installStdoutTripwire } from './adapters/stdout_guard.js';
 import { getLogger, type Logger } from './logging.js';
+import { assertNodeVersion } from './runtime_check.js';
 import {
   LOG_DIR,
   DISABLE_PREWARM,
@@ -442,6 +443,15 @@ function isBinEntry(): boolean {
 }
 
 if (isBinEntry()) {
+  // Guard runs ONLY inside the bin-entry block, NOT at module load — unit
+  // tests import named exports (e.g. runEmbedderAutoReindex) and must not
+  // trip the version check on legacy CI runners. Mirrors the isBinEntry()
+  // realpath rationale above.
+  assertNodeVersion({
+    versions: process.versions,
+    stderrWrite: (chunk) => { process.stderr.write(chunk); },
+    exit: (code) => { process.exit(code); },
+  });
   if (process.argv[2] === 'install') {
     import('./installer/cli.js').then((m) => m.runInstallerCli(process.argv.slice(3))).then(() => process.exit(0)).catch((err) => {
       process.stderr.write(`Fatal: ${err instanceof Error ? err.stack : String(err)}\n`);

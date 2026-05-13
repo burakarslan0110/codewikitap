@@ -1,5 +1,6 @@
 // Source: README.md "Installation per agent" — Codex CLI uses TOML config at
 // ~/.codex/config.toml with [mcp_servers.codewikitap] table. User scope only.
+// Cross-platform: path documented identical on Linux/macOS/Windows.
 import * as path from 'node:path';
 import { parse as parseToml, stringify as stringifyToml } from '@iarna/toml';
 import { type InstallerAdapter, type AdapterReadResult, type McpEntry } from '../adapter.js';

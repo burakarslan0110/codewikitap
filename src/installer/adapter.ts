@@ -13,6 +13,12 @@ export type AdapterReadResult =
 export interface AdapterContext {
   readonly home: string;
   readonly cwd: string;
+  // Optional — populated by wizard.defaultDeps() from process.platform /
+  // process.env. Adapters that don't branch on platform (the 7 home-anchored
+  // adapters) ignore these; opencode reads them to honour XDG_CONFIG_HOME on
+  // Unix and APPDATA on Windows.
+  readonly platform?: NodeJS.Platform;
+  readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
 export interface InstallerAdapter {

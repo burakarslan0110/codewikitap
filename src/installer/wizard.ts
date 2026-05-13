@@ -32,6 +32,8 @@ export interface WizardDeps {
   readonly stdout: (chunk: string) => void;
   readonly createReadlineFn: () => Prompter;
   readonly argv: readonly string[];
+  readonly platform?: NodeJS.Platform;
+  readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
 const CANONICAL_ENTRY: McpEntry = { command: 'npx', args: ['-y', 'codewikitap'] };
@@ -80,6 +82,8 @@ function defaultDeps(): WizardDeps {
     stdout: (s) => { process.stdout.write(s); },
     createReadlineFn: createDefaultPrompter,
     argv: process.argv,
+    platform: process.platform,
+    env: process.env,
   };
 }
 
@@ -202,7 +206,12 @@ export async function runWizard(opts: WizardOpts, depsIn?: WizardDeps): Promise<
       }
     }
 
-    const resolvedPath = adapter.pathFor(scope, { home: deps.home, cwd: deps.cwd });
+    const resolvedPath = adapter.pathFor(scope, {
+      home: deps.home,
+      cwd: deps.cwd,
+      platform: deps.platform,
+      env: deps.env,
+    });
     const current = await adapter.read(resolvedPath);
     const merged = adapter.merge(current, CANONICAL_ENTRY);
     const nextContent = adapter.serialize(merged);

@@ -1,5 +1,6 @@
 // Source: https://qwenlm.github.io/qwen-code-docs/en/users/features/mcp/ (verified 2026-05-12)
 // Qwen Code uses `mcpServers` in `.qwen/settings.json` (project) or `~/.qwen/settings.json` (user).
+// Cross-platform: path documented identical on Linux/macOS/Windows.
 import * as path from 'node:path';
 import { type InstallerAdapter } from '../adapter.js';
 import { readJsonFile, mergeIntoJson, serializeJson } from '../io.js';

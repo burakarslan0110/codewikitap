@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+const TESTS_UNIT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ADAPTERS_DIR = path.resolve(TESTS_UNIT_DIR, '..', '..', 'src', 'installer', 'adapters');
 
 // All assertions below will fail until the installer modules exist.
 // This file is the unit-test class for the installer feature (per the testing
@@ -403,14 +407,132 @@ describe('installer/io.ts', () => {
     });
   });
 
+  describe('cross-platform paths', () => {
+    describe('opencode user scope', () => {
+      it.each(['linux', 'darwin'] as const)(
+        '%s: respects XDG_CONFIG_HOME when set',
+        async (platform) => {
+          const { ADAPTERS } = await import('../../src/installer/adapters/index.js');
+          const adapter = ADAPTERS.find((a) => a.id === 'opencode')!;
+          const xdg = path.join(tmpRoot, 'xdg-custom');
+          const resolved = adapter.pathFor('user', {
+            home: tmpRoot,
+            cwd: tmpRoot,
+            platform,
+            env: { XDG_CONFIG_HOME: xdg },
+          });
+          expect(resolved).toBe(path.join(xdg, 'opencode', 'opencode.json'));
+        },
+      );
+
+      it.each(['linux', 'darwin'] as const)(
+        '%s: falls back to <home>/.config when XDG_CONFIG_HOME unset',
+        async (platform) => {
+          const { ADAPTERS } = await import('../../src/installer/adapters/index.js');
+          const adapter = ADAPTERS.find((a) => a.id === 'opencode')!;
+          const resolved = adapter.pathFor('user', {
+            home: tmpRoot,
+            cwd: tmpRoot,
+            platform,
+            env: {},
+          });
+          expect(resolved).toBe(path.join(tmpRoot, '.config', 'opencode', 'opencode.json'));
+        },
+      );
+
+      it.each(['linux', 'darwin'] as const)(
+        '%s: falls back to <home>/.config when XDG_CONFIG_HOME is empty string',
+        async (platform) => {
+          const { ADAPTERS } = await import('../../src/installer/adapters/index.js');
+          const adapter = ADAPTERS.find((a) => a.id === 'opencode')!;
+          const resolved = adapter.pathFor('user', {
+            home: tmpRoot,
+            cwd: tmpRoot,
+            platform,
+            env: { XDG_CONFIG_HOME: '' },
+          });
+          expect(resolved).toBe(path.join(tmpRoot, '.config', 'opencode', 'opencode.json'));
+        },
+      );
+
+      it('win32: respects APPDATA when set', async () => {
+        const { ADAPTERS } = await import('../../src/installer/adapters/index.js');
+        const adapter = ADAPTERS.find((a) => a.id === 'opencode')!;
+        const appData = path.join(tmpRoot, 'AppData', 'Roaming');
+        const resolved = adapter.pathFor('user', {
+          home: tmpRoot,
+          cwd: tmpRoot,
+          platform: 'win32',
+          env: { APPDATA: appData },
+        });
+        expect(resolved).toBe(path.join(appData, 'opencode', 'opencode.json'));
+      });
+
+      it('win32: falls back to <home>/AppData/Roaming when APPDATA unset', async () => {
+        const { ADAPTERS } = await import('../../src/installer/adapters/index.js');
+        const adapter = ADAPTERS.find((a) => a.id === 'opencode')!;
+        const resolved = adapter.pathFor('user', {
+          home: tmpRoot,
+          cwd: tmpRoot,
+          platform: 'win32',
+          env: {},
+        });
+        expect(resolved).toBe(path.join(tmpRoot, 'AppData', 'Roaming', 'opencode', 'opencode.json'));
+      });
+    });
+
+    describe('opencode project scope', () => {
+      it.each(['linux', 'darwin', 'win32'] as const)(
+        '%s: returns <cwd>/opencode.json',
+        async (platform) => {
+          const { ADAPTERS } = await import('../../src/installer/adapters/index.js');
+          const adapter = ADAPTERS.find((a) => a.id === 'opencode')!;
+          const resolved = adapter.pathFor('project', {
+            home: tmpRoot,
+            cwd: tmpRoot,
+            platform,
+            env: {},
+          });
+          expect(resolved).toBe(path.join(tmpRoot, 'opencode.json'));
+        },
+      );
+    });
+
+    describe('home-anchored adapters carry no platform branch', () => {
+      // Reads each non-opencode adapter source file and asserts the
+      // substrings 'ctx.platform', 'ctx.env', and 'process.platform' are
+      // ABSENT. Locks the invariant that these adapters stay home-only —
+      // a future engineer adding a platform branch flips this red.
+      const HOME_ANCHORED = [
+        'claude_code.ts',
+        'cursor.ts',
+        'codex_cli.ts',
+        'gemini_cli.ts',
+        'qwen_code.ts',
+        'windsurf.ts',
+        'antigravity.ts',
+      ] as const;
+
+      it.each(HOME_ANCHORED)(
+        '%s does not reference ctx.platform / ctx.env / process.platform',
+        async (file) => {
+          const source = await fs.readFile(path.join(ADAPTERS_DIR, file), 'utf8');
+          expect(source).not.toMatch(/ctx\.platform/);
+          expect(source).not.toMatch(/ctx\.env/);
+          expect(source).not.toMatch(/process\.platform/);
+        },
+      );
+    });
+  });
+
   describe('adapters/opencode (mcp.<name> + type:"local")', () => {
-    it('pathFor(project) → opencode.json (cwd), pathFor(user) → ~/.config/opencode/opencode.json', async () => {
+    it('pathFor(project) → opencode.json (cwd); pathFor(user, linux, no XDG) → ~/.config/opencode/opencode.json', async () => {
       const { ADAPTERS } = await import('../../src/installer/adapters/index.js');
       const adapter = ADAPTERS.find((a) => a.id === 'opencode')!;
-      expect(adapter.pathFor('project', { home: tmpRoot, cwd: tmpRoot })).toBe(
+      expect(adapter.pathFor('project', { home: tmpRoot, cwd: tmpRoot, platform: 'linux', env: {} })).toBe(
         path.join(tmpRoot, 'opencode.json'),
       );
-      expect(adapter.pathFor('user', { home: tmpRoot, cwd: tmpRoot })).toBe(
+      expect(adapter.pathFor('user', { home: tmpRoot, cwd: tmpRoot, platform: 'linux', env: {} })).toBe(
         path.join(tmpRoot, '.config/opencode/opencode.json'),
       );
     });

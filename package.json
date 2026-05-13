@@ -18,7 +18,7 @@
     "scripts/postinstall.mjs"
   ],
   "engines": {
-    "node": ">=20.0.0 <21.0.0"
+    "node": ">=20.0.0"
   },
   "packageManager": "pnpm@10.33.4",
   "scripts": {

@@ -1,3 +1,5 @@
+// Cross-platform: path documented identical on Linux/macOS/Windows
+// (relies on os.homedir() resolution; no XDG/APPDATA branching).
 import * as path from 'node:path';
 import { type InstallerAdapter } from '../adapter.js';
 import { readJsonFile, mergeIntoJson, serializeJson } from '../io.js';
