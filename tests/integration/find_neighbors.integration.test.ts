@@ -237,14 +237,15 @@ describe('find_neighbors integration — index_building timeout race', () => {
       return { nodes: [], notFound: false, emptyShell: false, firstCommitSha: slowSha };
     };
     // Override the timeout for this call via the tool input is not exposed,
-    // so we rely on the default 5000ms. Skip the long wait by calling a
-    // repo that's never in cache; the test setup put facebook/react in
-    // cache only when buildIndex !== false. Here we use a fresh repo.
+    // so we rely on the INDEX_BUILD_TIMEOUT_MS default (15000ms). Skip the
+    // long wait by calling a repo that's never in cache; the test setup put
+    // facebook/react in cache only when buildIndex !== false. Here we use a
+    // fresh repo.
     const callPromise = mcpClient.callTool({
       name: 'find_neighbors',
       arguments: { kind: 'section_links', repo: 'never-indexed/repo', section_slug: 'a' },
     });
-    // Wait for the timeout to fire (5s default); release the block after.
+    // Wait for the timeout to fire (15s default); release the block after.
     const r = await callPromise;
     release();
     const s = structuredOf<FindNeighborsResponse>(r);
@@ -253,5 +254,5 @@ describe('find_neighbors integration — index_building timeout race', () => {
     // valid. We just assert the schema.
     expect(s.neighbors).toBeDefined();
     expect(typeof s.truncated).toBe('boolean');
-  }, 10000);
+  }, 25000);
 });
