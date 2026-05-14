@@ -118,20 +118,20 @@ describe('reciprocalRankFusion', () => {
 });
 
 describe('escapeBM25Query', () => {
-  it('passes alphanumeric tokens unchanged', () => {
-    expect(escapeBM25Query('auth setup')).toBe('auth setup');
-    expect(escapeBM25Query('hook')).toBe('hook');
+  it('wraps single tokens in double-quotes and OR-joins multi-token queries', () => {
+    expect(escapeBM25Query('hook')).toBe('"hook"');
+    expect(escapeBM25Query('auth setup')).toBe('"auth" OR "setup"');
   });
 
   it('strips FTS5 grammar characters within tokens', () => {
     // The escape splits on whitespace; non-alphanumeric chars are stripped
     // from each token (no internal split), so 'fts5(text)' collapses.
-    expect(escapeBM25Query('*foo*')).toBe('foo');
-    expect(escapeBM25Query('fts5(text)')).toBe('fts5text');
-    expect(escapeBM25Query('a:b')).toBe('ab');
-    expect(escapeBM25Query('"quoted"')).toBe('quoted');
-    // Spaces between tokens are preserved.
-    expect(escapeBM25Query('foo (bar) baz')).toBe('foo bar baz');
+    expect(escapeBM25Query('*foo*')).toBe('"foo"');
+    expect(escapeBM25Query('fts5(text)')).toBe('"fts5text"');
+    expect(escapeBM25Query('a:b')).toBe('"ab"');
+    expect(escapeBM25Query('"quoted"')).toBe('"quoted"');
+    // Surviving tokens are OR-joined.
+    expect(escapeBM25Query('foo (bar) baz')).toBe('"foo" OR "bar" OR "baz"');
   });
 
   it('returns empty string when no tokens survive', () => {
@@ -141,17 +141,35 @@ describe('escapeBM25Query', () => {
   });
 
   it('preserves unicode letters and digits', () => {
-    expect(escapeBM25Query('café 123')).toBe('café 123');
-    expect(escapeBM25Query('日本語')).toBe('日本語');
+    expect(escapeBM25Query('café 123')).toBe('"café" OR "123"');
+    expect(escapeBM25Query('日本語')).toBe('"日本語"');
   });
 
   it('keeps CamelCase as single token (no internal split in v2.7)', () => {
-    expect(escapeBM25Query('useState')).toBe('useState');
-    expect(escapeBM25Query('XMLHttpRequest')).toBe('XMLHttpRequest');
+    expect(escapeBM25Query('useState')).toBe('"useState"');
+    expect(escapeBM25Query('XMLHttpRequest')).toBe('"XMLHttpRequest"');
   });
 
   it('strips underscores and hyphens (v2.7 default tokenizer)', () => {
-    expect(escapeBM25Query('snake_case')).toBe('snakecase');
-    expect(escapeBM25Query('kebab-case')).toBe('kebabcase');
+    expect(escapeBM25Query('snake_case')).toBe('"snakecase"');
+    expect(escapeBM25Query('kebab-case')).toBe('"kebabcase"');
+  });
+
+  it('OR-joins multi-token queries so the BM25 lane stays populated under RRF', () => {
+    // v0.5.2 bug: tokens were rejoined with a bare space, which FTS5
+    // interprets as implicit AND. Natural-language queries like "zod
+    // object pick" required EVERY token to co-occur in a single chunk
+    // → 0 rows → hybrid silently degraded to vector-only despite
+    // reporting `mode: "hybrid"`. The fix OR-joins quoted tokens so the
+    // BM25 lane returns high-recall candidates; BM25 ranking still favors
+    // chunks that match more tokens. Quoting protects tokens that happen
+    // to equal FTS5 keywords (AND, OR, NOT, NEAR) after stripping.
+    const out = escapeBM25Query('zod object pick');
+    // Two ` OR ` separators for three input tokens.
+    expect(out.match(/ OR /g) ?? []).toHaveLength(2);
+    // Every alphanumeric token from the input survives.
+    for (const tok of ['zod', 'object', 'pick']) {
+      expect(out).toContain(tok);
+    }
   });
 });

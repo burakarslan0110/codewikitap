@@ -115,17 +115,27 @@ function chunkKey(c: IndexedChunk): string {
 /**
  * Sanitize a user query for FTS5's MATCH grammar. Tokenize on whitespace,
  * strip all non-Unicode-letter/digit characters per token, drop empties,
- * rejoin with spaces. Returns empty string when no tokens survive — the
- * caller must short-circuit to vector-only mode in that case (FTS5
+ * rejoin as quoted OR-clauses. Returns empty string when no tokens survive
+ * — the caller must short-circuit to vector-only mode in that case (FTS5
  * `WHERE ... MATCH ''` throws SQLITE_ERROR).
  *
+ * OR-join rationale: FTS5's default operator between bare tokens is AND,
+ * so the prior space-join required every token to co-occur in a single
+ * chunk — natural-language queries returned zero BM25 rows, silently
+ * degrading hybrid retrieval to vector-only despite reporting
+ * `mode: "hybrid"`. OR-join keeps the BM25 lane wide; BM25 ranking still
+ * favors chunks that match more tokens, so RRF receives a useful sparse
+ * list. Each token is wrapped in double quotes so tokens that happen to
+ * equal FTS5 keywords (AND, OR, NOT, NEAR) after stripping are treated
+ * as phrases, not operators.
+ *
  * Examples:
- *   "auth setup"              → "auth setup"
- *   "*foo*"                   → "foo"
- *   "fts5(text)"              → "fts5 text"
+ *   "auth setup"              → "\"auth\" OR \"setup\""
+ *   "*foo*"                   → "\"foo\""
+ *   "fts5(text)"              → "\"fts5text\""
  *   "!@#$%"                   → ""
- *   "useState"                → "useState" (CamelCase kept as single token)
- *   "snake_case_function"     → "snakecasefunction" (underscores stripped in v2.7)
+ *   "useState"                → "\"useState\"" (CamelCase kept as single token)
+ *   "snake_case_function"     → "\"snakecasefunction\"" (underscores stripped in v2.7)
  */
 export function escapeBM25Query(query: string): string {
   if (!query) return '';
@@ -134,5 +144,6 @@ export function escapeBM25Query(query: string): string {
     .split(/\s+/)
     .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ''))
     .filter((t) => t.length > 0);
-  return tokens.join(' ');
+  if (tokens.length === 0) return '';
+  return tokens.map((t) => `"${t}"`).join(' OR ');
 }

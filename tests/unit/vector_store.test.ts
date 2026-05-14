@@ -10,6 +10,7 @@ import * as os from 'node:os';
 
 import { Cache } from '../../src/services/cache.js';
 import { VectorStore } from '../../src/services/vector_store.js';
+import { escapeBM25Query } from '../../src/services/fusion.js';
 import type { IndexedChunk } from '../../src/types.js';
 
 let tmpDir: string;
@@ -423,6 +424,28 @@ describe('VectorStore v2.7 — BM25 (FTS5) tri-write + query + drop', () => {
 
   it('queryChunksBM25 throws on empty query (caller responsibility)', () => {
     expect(() => bmStore.queryChunksBM25('repo/a', '   ', 0, 5)).toThrow(/non-empty query/);
+  });
+
+  it('escapeBM25Query + queryChunksBM25 returns rows for multi-token queries (RRF high-recall contract)', () => {
+    // v0.5.2 regression test: prior escape rejoined tokens with a bare
+    // space, which FTS5 treats as implicit AND. A natural-language query
+    // like "hook authentication" required BOTH tokens in one chunk and
+    // returned zero rows — the BM25 lane silently went empty under RRF.
+    // With OR-join, each token contributes; BM25 ranking still favors
+    // chunks matching more tokens.
+    bmStore.upsertChunks([
+      chunk('repo/a', 'auth', 0, vec([1, 0, 0, 0]), 'authentication setup flow'),
+      chunk('repo/a', 'hooks', 0, vec([0, 1, 0, 0]), 'useState hook example'),
+      chunk('repo/a', 'rendering', 0, vec([0, 0, 1, 0]), 'rendering pipeline overview'),
+    ]);
+
+    // No single chunk contains BOTH "hook" and "authentication".
+    const escaped = escapeBM25Query('hook authentication');
+    const result = bmStore.queryChunksBM25('repo/a', escaped, 0, 10);
+
+    expect(result.total).toBe(2);
+    const slugs = result.rows.map((r) => r.sectionSlug).sort();
+    expect(slugs).toEqual(['auth', 'hooks']);
   });
 
   it('dropRepo clears fts_chunks rows for that repo', () => {
