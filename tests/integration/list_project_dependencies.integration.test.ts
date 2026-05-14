@@ -300,3 +300,177 @@ describe('v2.4 — TS-008: BOM resolver fail-soft when cache is empty AND fetch 
     }
   });
 });
+
+describe('v0.6 — multi-manifest + frameworks (subdir scan + framework context)', () => {
+  it('polyglot cwd returns manifests[] with one entry per ecosystem root + frameworks per entry', async () => {
+    // Build a polyglot tmp project: frontend/package.json + backend/pom.xml + mobile/Cargo.toml.
+    const tmpProj = fs.mkdtempSync(path.join(os.tmpdir(), 'cwk-multimanifest-'));
+    try {
+      fs.mkdirSync(path.join(tmpProj, 'frontend'));
+      fs.writeFileSync(path.join(tmpProj, 'frontend', 'package.json'), JSON.stringify({
+        name: 'fe', dependencies: { next: '^15.0.0', react: '^19.0.0' },
+      }));
+      fs.mkdirSync(path.join(tmpProj, 'backend'));
+      fs.writeFileSync(path.join(tmpProj, 'backend', 'pom.xml'),
+        '<?xml version="1.0"?><project><modelVersion>4.0.0</modelVersion>' +
+        '<groupId>g</groupId><artifactId>a</artifactId><version>1</version>' +
+        '<dependencies><dependency><groupId>org.springframework.boot</groupId>' +
+        '<artifactId>spring-boot-starter-web</artifactId><version>3.2.0</version></dependency></dependencies></project>');
+      fs.mkdirSync(path.join(tmpProj, 'mobile'));
+      fs.writeFileSync(path.join(tmpProj, 'mobile', 'Cargo.toml'),
+        '[package]\nname = "x"\nversion = "0.1.0"\n\n[dependencies]\ntokio = "1.37"\n');
+
+      const ctx = await bootMcp(tmpProj, tmpCacheDir);
+      try {
+        // Pre-cache resolves so resolve doesn't hit the network.
+        ctx.cache.setRepo('next', 'npm', 'vercel', 'next.js', 'npm-registry', 'high');
+        ctx.cache.setRepo('react', 'npm', 'facebook', 'react', 'npm-registry', 'high');
+        ctx.cache.setRepo('org.springframework.boot:spring-boot-starter-web', 'maven', 'spring-projects', 'spring-boot', 'maven-central', 'high');
+        ctx.cache.setRepo('tokio', 'cargo', 'tokio-rs', 'tokio', 'crates-io', 'high');
+
+        const r = await ctx.mcpClient.callTool({ name: 'list_project_dependencies', arguments: {} });
+        const result = structuredOf(r);
+        const manifests = result.manifests as Array<Record<string, unknown>>;
+        expect(manifests).toBeDefined();
+        expect(manifests.length).toBeGreaterThanOrEqual(3);
+        const types = manifests.map((m) => m.manifestType as string).sort();
+        expect(types).toEqual(['Cargo.toml', 'package.json', 'pom.xml']);
+
+        // Each entry must carry a frameworks array.
+        for (const m of manifests) {
+          expect(Array.isArray(m.frameworks)).toBe(true);
+        }
+
+        // The pom.xml manifest must include Spring Boot framework context.
+        const javaManifest = manifests.find((m) => m.manifestType === 'pom.xml')!;
+        const fws = javaManifest.frameworks as Array<Record<string, unknown>>;
+        const spring = fws.find((f) => f.name === 'Spring Boot');
+        expect(spring).toBeDefined();
+        expect(spring?.confidence).toBe('high');
+        expect(spring?.sourceRepo).toBe('spring-projects/spring-boot');
+
+        // The package.json manifest must include next.js.
+        const jsManifest = manifests.find((m) => m.manifestType === 'package.json')!;
+        const jsFws = jsManifest.frameworks as Array<Record<string, unknown>>;
+        expect(jsFws.some((f) => f.name === 'next.js')).toBe(true);
+
+        // manifestsTotal sums all manifests' deps; total reflects primary only.
+        const manifestsTotal = result.manifestsTotal as number;
+        const sumPerScan = manifests.reduce((acc, m) => acc + (m.dependencies as unknown[]).length, 0);
+        expect(manifestsTotal).toBe(sumPerScan);
+        expect(result.total).toBe((manifests[0].dependencies as unknown[]).length);
+      } finally {
+        await ctx.cleanup();
+      }
+    } finally {
+      fs.rmSync(tmpProj, { recursive: true, force: true });
+    }
+  });
+
+  it('single-manifest cwd: top-level fields = primary projection of manifests[0] (legacy back-compat)', async () => {
+    const tmpProj = fs.mkdtempSync(path.join(os.tmpdir(), 'cwk-singlemanifest-'));
+    try {
+      fs.writeFileSync(path.join(tmpProj, 'package.json'), JSON.stringify({
+        name: 'x', dependencies: { lodash: '^4.0.0' },
+      }));
+      const ctx = await bootMcp(tmpProj, tmpCacheDir);
+      try {
+        ctx.cache.setRepo('lodash', 'npm', 'lodash', 'lodash', 'npm-registry', 'high');
+        const r = await ctx.mcpClient.callTool({ name: 'list_project_dependencies', arguments: {} });
+        const result = structuredOf(r);
+        const manifests = result.manifests as Array<Record<string, unknown>>;
+        expect(manifests).toHaveLength(1);
+        expect(result.projectRoot).toBe(manifests[0].projectRoot);
+        expect(result.manifestType).toBe(manifests[0].manifestType);
+        expect(result.total).toBe((manifests[0].dependencies as unknown[]).length);
+      } finally {
+        await ctx.cleanup();
+      }
+    } finally {
+      fs.rmSync(tmpProj, { recursive: true, force: true });
+    }
+  });
+
+  it('no manifest anywhere: manifests=[], top-level projectRoot=null', async () => {
+    const tmpProj = fs.mkdtempSync(path.join(os.tmpdir(), 'cwk-nomanifest-'));
+    try {
+      const ctx = await bootMcp(tmpProj, tmpCacheDir);
+      try {
+        const r = await ctx.mcpClient.callTool({ name: 'list_project_dependencies', arguments: {} });
+        const result = structuredOf(r);
+        expect(result.manifests).toEqual([]);
+        expect(result.projectRoot).toBeNull();
+        expect(result.manifestType).toBeNull();
+        expect(result.total).toBe(0);
+        expect(result.manifestsTotal).toBe(0);
+      } finally {
+        await ctx.cleanup();
+      }
+    } finally {
+      fs.rmSync(tmpProj, { recursive: true, force: true });
+    }
+  });
+
+  it('schema round-trip: outputSchema.parse(...) accepts the response (additive-schema smoke gate)', async () => {
+    const { LIST_PROJECT_DEPENDENCIES_OUTPUT_SCHEMA } = await import('../../src/tools/list_project_dependencies.js');
+    const tmpProj = fs.mkdtempSync(path.join(os.tmpdir(), 'cwk-schema-'));
+    try {
+      fs.writeFileSync(path.join(tmpProj, 'package.json'), JSON.stringify({
+        name: 'x', dependencies: { lodash: '^4.0.0' },
+      }));
+      const ctx = await bootMcp(tmpProj, tmpCacheDir);
+      try {
+        ctx.cache.setRepo('lodash', 'npm', 'lodash', 'lodash', 'npm-registry', 'high');
+        const r = await ctx.mcpClient.callTool({ name: 'list_project_dependencies', arguments: {} });
+        const result = structuredOf(r);
+        expect(() => LIST_PROJECT_DEPENDENCIES_OUTPUT_SCHEMA.parse(result)).not.toThrow();
+      } finally {
+        await ctx.cleanup();
+      }
+    } finally {
+      fs.rmSync(tmpProj, { recursive: true, force: true });
+    }
+  });
+
+  it('pagination applies ONLY to primary (manifests[0]); additional manifests return full deps', async () => {
+    const tmpProj = fs.mkdtempSync(path.join(os.tmpdir(), 'cwk-pagination-'));
+    try {
+      // Two manifests, NAMED so deterministic alphabetical BFS picks the
+      // multi-dep one as primary: `aaa-frontend/` (3 deps, package.json) +
+      // `zzz-backend/` (1 dep, pom.xml).
+      fs.mkdirSync(path.join(tmpProj, 'aaa-frontend'));
+      fs.writeFileSync(path.join(tmpProj, 'aaa-frontend', 'package.json'), JSON.stringify({
+        name: 'fe', dependencies: { lodash: '^4.0.0', 'date-fns': '^3.0.0', axios: '^1.0.0' },
+      }));
+      fs.mkdirSync(path.join(tmpProj, 'zzz-backend'));
+      fs.writeFileSync(path.join(tmpProj, 'zzz-backend', 'pom.xml'),
+        '<?xml version="1.0"?><project><modelVersion>4.0.0</modelVersion>' +
+        '<groupId>g</groupId><artifactId>a</artifactId><version>1</version>' +
+        '<dependencies><dependency><groupId>com.example</groupId><artifactId>lib</artifactId><version>1.0</version></dependency></dependencies></project>');
+
+      const ctx = await bootMcp(tmpProj, tmpCacheDir);
+      try {
+        ctx.cache.setRepo('lodash', 'npm', 'lodash', 'lodash', 'npm-registry', 'high');
+        ctx.cache.setRepo('date-fns', 'npm', 'date-fns', 'date-fns', 'npm-registry', 'high');
+        ctx.cache.setRepo('axios', 'npm', 'axios', 'axios', 'npm-registry', 'high');
+        ctx.cache.setRepo('com.example:lib', 'maven', 'example', 'lib', 'maven-central', 'high');
+
+        const r = await ctx.mcpClient.callTool({ name: 'list_project_dependencies', arguments: { limit: 2 } });
+        const result = structuredOf(r);
+        const deps = result.dependencies as Array<Record<string, unknown>>;
+        const manifests = result.manifests as Array<Record<string, unknown>>;
+        // Primary projection paginated to 2 entries
+        expect(deps).toHaveLength(2);
+        // Additional manifests (pom.xml) keep full list
+        const java = manifests.find((m) => m.manifestType === 'pom.xml')!;
+        expect((java.dependencies as unknown[]).length).toBe(1);
+        // Primary's underlying length unchanged (3); total reflects pre-slice count
+        expect(result.total).toBe(3);
+      } finally {
+        await ctx.cleanup();
+      }
+    } finally {
+      fs.rmSync(tmpProj, { recursive: true, force: true });
+    }
+  });
+});

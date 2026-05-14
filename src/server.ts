@@ -91,7 +91,7 @@ export interface BuiltServer {
   client: CodeWikiClient;
   retriever: Retriever;
   graphQuery: GraphQuery;
-  /** v2.8: surfaced so the prewarmer wires onto the SAME Indexer instance the tools use (single-flight collapse). */
+  /** Surfaced so request_indexing wires onto the SAME Indexer instance the tools use (single-flight collapse). */
   indexer: Indexer;
   /** v3 (MCP -32000 fix RC1 L3): surfaced for the boot-time warmupModels() background call in src/index.ts:main(). */
   embedder: Embedder;

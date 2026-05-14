@@ -32,3 +32,9 @@ docs/
 # AI-agent local config — not part of the public repo
 CLAUDE.md
 .claude/
+
+# Local manual-test fixtures + demo scripts (v0.6 verification scaffolding)
+test_project/
+scripts/test-multi-language-scan.mjs
+scripts/test-walk-behavior.mjs
+scripts/test-v0.6-scenarios.mjs

@@ -22,7 +22,6 @@ import { assertNodeVersion } from './runtime_check.js';
 import { detectRuntimeCapabilities } from './runtime_capabilities.js';
 import {
   LOG_DIR,
-  DISABLE_PREWARM,
   DISABLE_MODEL_WARMUP,
   STDOUT_TRIPWIRE,
   PLAYWRIGHT_INSTALL_TIMEOUT_MS,
@@ -30,9 +29,10 @@ import {
 import { Cache } from './services/cache.js';
 import { VectorStore } from './services/vector_store.js';
 import { EMBED_MODEL, EMBED_MODEL_DIM, LEGACY_EMBED_MODEL_DEFAULT } from './config_rag.js';
-import { buildPrewarmer, type Prewarmer } from './services/prewarmer.js';
 import type { Embedder } from './adapters/embedder.js';
 import type { Reranker } from './adapters/reranker.js';
+import type { AdditionalRoot } from './services/manifest_watcher.js';
+import type { ProjectScan } from './types.js';
 
 const SENTINEL_PATH = path.join(LOG_DIR, '.playwright-ok');
 
@@ -336,68 +336,64 @@ async function main(): Promise<void> {
   // visible BEFORE the first slow tool call.
   detectRuntimeCapabilities({ cache: built.cache, driver, log });
 
-  // v2.8: scanProject() is hoisted out of the watcher block so the prewarmer
-  // works independently of CODEWIKI_DISABLE_WATCH (Codex review iter 1 #3).
-  // A single initialScan feeds BOTH the watcher (when enabled) AND the
-  // prewarmer (when enabled).
+  // v0.6: downward recursive scan first; fall back to upward walk only when
+  // no manifest is found anywhere under cwd. The watcher observes EVERY root
+  // discovered (additionalRoots[]) so polyglot-monorepo edits invalidate
+  // their owning caches.
   const path = await import('node:path');
   const { DISABLE_MANIFEST_WATCH } = await import('./config.js');
-  const { scanProject } = await import('./services/project_scanner.js');
+  const { scanProject, scanProjectRecursive } = await import('./services/project_scanner.js');
   const { ManifestWatcher } = await import('./services/manifest_watcher.js');
 
-  let initialScan: ReturnType<typeof scanProject> | null = null;
+  let scans: ProjectScan[] = [];
   try {
-    initialScan = scanProject(cwd);
+    scans = scanProjectRecursive(cwd);
+    if (scans.length === 0) {
+      const upward = scanProject(cwd);
+      if (upward.projectRoot && upward.manifestType) scans = [upward];
+    }
   } catch (err) {
     log.warn('initial_scan_failed', { err: err instanceof Error ? err.message : String(err) });
   }
+  const primary = scans[0] ?? null;
 
-  // v2.8: startup auto-prewarm. Constructed FIRST so the watcher's
-  // onDepsAdded callback can forward additions into the queue. Eager-indexes
-  // hasWiki=true direct deps so user queries arriving after a repo has been
-  // prewarmed hit the freshness short-circuit instead of the 5 s retriever
-  // race. Independent from the watcher knob — DISABLE_WATCH does NOT disable
-  // prewarm.
-  let prewarmer: Prewarmer | null = null;
-  if (!DISABLE_PREWARM && initialScan && initialScan.dependencies.length > 0) {
-    prewarmer = buildPrewarmer({
-      client: built.client,
-      indexer: built.indexer,
-      cache: built.cache,
-    });
-    prewarmer.enqueueDeps(initialScan.dependencies);
-    prewarmer.start();
-    log.info('prewarmer_started', { queued: initialScan.dependencies.length });
-  } else if (DISABLE_PREWARM) {
-    log.info('prewarm_disabled');
-  }
-
-  // v2.2: optional manifest file-watcher. Enabled by default; opt-out via
-  // CODEWIKI_DISABLE_WATCH=1. v2.8: wires onDepsAdded → prewarmer.enqueueDeps
-  // so deps added mid-session prewarm without a server restart.
+  // Optional manifest file-watcher. Enabled by default; opt-out via
+  // CODEWIKI_DISABLE_WATCH=1. Watches the primary root + every additional
+  // root from the recursive scan.
   let watcher: InstanceType<typeof ManifestWatcher> | null = null;
-  if (!DISABLE_MANIFEST_WATCH && initialScan && initialScan.projectRoot && initialScan.manifestType) {
+  if (!DISABLE_MANIFEST_WATCH && primary && primary.projectRoot && primary.manifestType) {
     try {
       // v2.3: prefer the scanner's matchedManifestPath when set (csproj
       // glob, nested gradle catalog); fall back to basename join for v1/v2/
       // v2.2 manifest types.
       const manifestPath =
-        initialScan.matchedManifestPath ??
-        path.join(initialScan.projectRoot, initialScan.manifestType);
+        primary.matchedManifestPath ??
+        path.join(primary.projectRoot, primary.manifestType);
+      const additionalRoots: AdditionalRoot[] = scans.slice(1)
+        .filter((s): s is ProjectScan & { projectRoot: string; manifestType: string } =>
+          s.projectRoot !== null && s.manifestType !== null)
+        .map((s) => ({
+          projectRoot: s.projectRoot,
+          manifestPath: s.matchedManifestPath ?? path.join(s.projectRoot, s.manifestType),
+          workspaceMembers: s.workspaceMembers,
+          extraManifestFiles: s.extraManifestFiles,
+          initialScan: s,
+        }));
       watcher = new ManifestWatcher({
-        projectRoot: initialScan.projectRoot,
+        projectRoot: primary.projectRoot,
         manifestPath,
-        workspaceMembers: initialScan.workspaceMembers,
-        extraManifestFiles: initialScan.extraManifestFiles,
+        workspaceMembers: primary.workspaceMembers,
+        extraManifestFiles: primary.extraManifestFiles,
         cache: built.cache,
         scannerOpts: {},
-        initialScan,
-        // Only wire the callback when the prewarmer is active — keeps v2.7
-        // lazy-probe behavior intact under CODEWIKI_DISABLE_PREWARM=1.
-        ...(prewarmer ? { onDepsAdded: (added): void => prewarmer!.enqueueDeps(added) } : {}),
+        initialScan: primary,
+        additionalRoots,
       });
       watcher.start();
-      log.info('manifest_watcher_started', { manifestPath });
+      log.info('manifest_watcher_started', {
+        manifestPath,
+        additionalRoots: additionalRoots.length,
+      });
     } catch (err) {
       log.warn('manifest_watcher_init_failed', { err: err instanceof Error ? err.message : String(err) });
     }
@@ -405,17 +401,13 @@ async function main(): Promise<void> {
     log.info('manifest_watcher_disabled');
   }
 
-  // v2.8: sequential shutdown. The previous Promise.all shape ran
-  // driver.close() and cache.close() concurrently with watcher.stop(), so an
-  // in-flight Indexer transaction could be raced by cache teardown
-  // (Claude review iter 1 must_fix + Codex review iter 1 #1). Strict order:
-  // prewarmer.stop drains the bg worker → watcher.stop closes chokidar →
-  // driver.close releases Playwright pages → cache.close (sync) tears down
-  // SQLite last, against a quiescent handle.
+  // Sequential shutdown — strict order keeps the indexer's atomic transaction
+  // safe against cache teardown: watcher.stop closes chokidar → driver.close
+  // releases Playwright pages → cache.close (sync) tears down SQLite last,
+  // against a quiescent handle.
   const closer = async (signal: string): Promise<void> => {
     log.info('shutting-down', { signal });
     try {
-      if (prewarmer) await prewarmer.stop();
       if (watcher) await watcher.stop();
       await driver.close();
       built.cache.close();

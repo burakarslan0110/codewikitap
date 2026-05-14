@@ -210,3 +210,50 @@ describe('TS-005 — citation footer enforcement', () => {
     expect(cite.commitSha).toMatch(/^[0-9a-f]{40}$/);
   });
 });
+
+describe('TS-006 — v0.6 subdir scan: polyglot cwd with no root manifest', () => {
+  it('cwd containing only `frontend/package.json` + `backend/pom.xml` returns manifests.length >= 2 via in-process MCP call', async () => {
+    // Build a polyglot tmp project with NO root manifest. The recursive scan
+    // must find both ecosystem roots end-to-end through the MCP server.
+    const polyTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cwk-server-polyglot-'));
+    const polyCacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cwk-server-polyglot-cache-'));
+    try {
+      fs.mkdirSync(path.join(polyTmp, 'frontend'));
+      fs.writeFileSync(path.join(polyTmp, 'frontend', 'package.json'), JSON.stringify({
+        name: 'fe', dependencies: { react: '^19.0.0' },
+      }));
+      fs.mkdirSync(path.join(polyTmp, 'backend'));
+      fs.writeFileSync(path.join(polyTmp, 'backend', 'pom.xml'),
+        '<?xml version="1.0"?><project><modelVersion>4.0.0</modelVersion>' +
+        '<groupId>g</groupId><artifactId>a</artifactId><version>1</version>' +
+        '<dependencies><dependency><groupId>com.example</groupId><artifactId>lib</artifactId><version>1.0</version></dependency></dependencies></project>');
+
+      const polyCache = await Cache.open({ dbPath: path.join(polyCacheDir, 'cache.db') });
+      const polyClient = new CodeWikiClient(new PlaywrightDriver(), polyCache);
+      polyClient.fetchPage = async () => notFoundExtraction();
+      polyCache.setRepo('react', 'npm', 'facebook', 'react', 'npm-registry', 'high');
+      polyCache.setRepo('com.example:lib', 'maven', 'example', 'lib', 'maven-central', 'high');
+
+      const polyBuilt = await buildServer({ cwd: polyTmp, cache: polyCache, client: polyClient });
+      const [polyServerT, polyClientT] = InMemoryTransport.createLinkedPair();
+      await polyBuilt.server.connect(polyServerT);
+      const polyMcpClient = new Client({ name: 'ts006-client', version: '0.0.1' });
+      await polyMcpClient.connect(polyClientT);
+      try {
+        const r = await polyMcpClient.callTool({ name: 'list_project_dependencies', arguments: {} });
+        const s = structuredOf(r);
+        const manifests = s.manifests as Array<Record<string, unknown>>;
+        expect(manifests.length).toBeGreaterThanOrEqual(2);
+        const types = manifests.map((m) => m.manifestType as string).sort();
+        expect(types).toEqual(['package.json', 'pom.xml']);
+      } finally {
+        await polyMcpClient.close();
+        await polyBuilt.server.close();
+        polyCache.close();
+      }
+    } finally {
+      fs.rmSync(polyTmp, { recursive: true, force: true });
+      fs.rmSync(polyCacheDir, { recursive: true, force: true });
+    }
+  });
+});

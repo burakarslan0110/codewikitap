@@ -21,6 +21,20 @@ import { Dependency, ManifestType, ProjectScan } from '../types.js';
 import { getLogger, Logger } from '../logging.js';
 import { MAX_WATCHED_PATHS } from '../config.js';
 
+/**
+ * v0.6: additive root for polyglot-monorepo subdir scans. Each entry is a
+ * fully-formed root sibling to the primary (`projectRoot` + `manifestPath`
+ * + optional members/extras + the initial `ProjectScan`). When empty / absent,
+ * `ManifestWatcher` behavior is bit-equal with v2.4 single-root mode.
+ */
+export interface AdditionalRoot {
+  projectRoot: string;
+  manifestPath: string;
+  workspaceMembers?: string[];
+  extraManifestFiles?: string[];
+  initialScan: ProjectScan;
+}
+
 export interface ManifestWatcherOpts {
   projectRoot: string;
   manifestPath: string;
@@ -40,15 +54,18 @@ export interface ManifestWatcherOpts {
   initialScan: ProjectScan;
   log?: Logger;
   /**
-   * v2.8: additive notification channel for newly-added deps. Invoked
-   * synchronously from `handleChange` AFTER cache invalidation + watch-set
-   * reconciliation, BEFORE `previousScan` is replaced. The watcher itself
-   * remains side-effect-free for additions (no cache touch, no upstream
-   * call); this callback lets the owner (typically the prewarmer in
-   * `src/index.ts`) decide whether to act. Backwards-compatible — undefined
-   * keeps v2.7 lazy-probe behavior.
+   * v0.6: additional root manifests discovered by `scanProjectRecursive`.
+   * Empty / undefined → primary-only behavior (back-compat).
    */
-  onDepsAdded?: (added: Dependency[]) => void;
+  additionalRoots?: AdditionalRoot[];
+}
+
+interface RootEntry {
+  projectRoot: string;
+  manifestPath: string;
+  workspaceMembers?: string[];
+  extraManifestFiles?: string[];
+  previousScan: ProjectScan;
 }
 
 /**
@@ -106,15 +123,30 @@ const DISCOVERY_ONLY_TYPES: ReadonlySet<ManifestType> = new Set<ManifestType>([]
 
 export class ManifestWatcher {
   private watcher: FSWatcher | null = null;
-  private previousScan: ProjectScan;
   private readonly opts: ManifestWatcherOpts;
   private readonly log: Logger;
   private _degradedMode = false;
+  /** Roots[0] = primary (back-compat); roots[1..] = additionalRoots. */
+  private readonly roots: RootEntry[];
 
   constructor(opts: ManifestWatcherOpts) {
     this.opts = opts;
-    this.previousScan = opts.initialScan;
     this.log = opts.log ?? getLogger();
+    const primary: RootEntry = {
+      projectRoot: opts.projectRoot,
+      manifestPath: opts.manifestPath,
+      workspaceMembers: opts.workspaceMembers,
+      extraManifestFiles: opts.extraManifestFiles,
+      previousScan: opts.initialScan,
+    };
+    const additional: RootEntry[] = (opts.additionalRoots ?? []).map((r) => ({
+      projectRoot: r.projectRoot,
+      manifestPath: r.manifestPath,
+      workspaceMembers: r.workspaceMembers,
+      extraManifestFiles: r.extraManifestFiles,
+      previousScan: r.initialScan,
+    }));
+    this.roots = [primary, ...additional];
   }
 
   /**
@@ -135,9 +167,9 @@ export class ManifestWatcher {
       awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 50 },
     });
 
-    const onChange = (): void => {
+    const onChange = (changedPath: string): void => {
       try {
-        this.handleChange();
+        this.handleChange(changedPath);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.log.warn('manifest_watcher_handle_error', { err: msg });
@@ -171,67 +203,103 @@ export class ManifestWatcher {
    * trigger the full v2.3 dispatch — multi-csproj+CPM, JS workspace
    * traversal, etc. — and produce an accurate dep-set diff.
    */
-  handleChange(): void {
-    const next = rescanFromRoot(this.opts.projectRoot, this.opts.scannerOpts);
+  handleChange(changedPath?: string): void {
+    // v0.6: route the rescan to the OWNING root. Default to primary when no
+    // path is supplied (back-compat for tests that drive handleChange()
+    // directly without a path argument). When a path IS supplied but no root
+    // claims it, log + return rather than silently rescanning primary — a
+    // spurious primary rescan can wrongly invalidate caches that the stray
+    // event was never about.
+    let owner: RootEntry;
+    if (changedPath) {
+      const found = this.findOwningRoot(changedPath);
+      if (!found) {
+        this.log.warn('manifest_watcher_unknown_path', { changedPath });
+        return;
+      }
+      owner = found;
+    } else {
+      owner = this.roots[0];
+    }
+    const next = rescanFromRoot(owner.projectRoot, this.opts.scannerOpts);
     // v2.3 transient-race guard (preserves v2.2 behavior of `rescanManifest`'s
     // `prev` parameter): if rescanFromRoot returned no manifest while we
     // previously had one, the canonical manifest is mid-rename — keep the
     // previous scan and skip invalidation. Mirror is also true for ENOENT
     // races on workspace members; we keep state until the next valid event.
-    if (next.manifestType === null && this.previousScan.manifestType !== null) {
+    if (next.manifestType === null && owner.previousScan.manifestType !== null) {
       this.log.info('manifest_watcher_transient_no_manifest', {
-        projectRoot: this.opts.projectRoot,
+        projectRoot: owner.projectRoot,
       });
       return;
     }
-    this.invalidateForRemovals(this.previousScan.dependencies, next.dependencies);
+    this.invalidateForRemovals(owner.previousScan.dependencies, next.dependencies);
     this.reconcileWatchSet(
-      this.previousScan.workspaceMembers,
+      owner,
+      owner.previousScan.workspaceMembers,
       next.workspaceMembers,
-      this.previousScan.extraManifestFiles,
+      owner.previousScan.extraManifestFiles,
       next.extraManifestFiles,
     );
-    // v2.8: ordering invariant — compute the added-set against the OUTGOING
-    // previousScan BEFORE overwriting it. Symmetric to invalidateForRemovals.
-    this.forwardAdditions(this.previousScan.dependencies, next.dependencies);
-    this.previousScan = next;
-  }
-
-  private forwardAdditions(prev: Dependency[], next: Dependency[]): void {
-    const cb = this.opts.onDepsAdded;
-    if (!cb) return;
-    const prevKeys = new Set(prev.map((d) => `${d.name}\x00${d.ecosystem}`));
-    const added = next.filter((d) => !prevKeys.has(`${d.name}\x00${d.ecosystem}`));
-    if (added.length === 0) return;
-    cb(added);
+    owner.previousScan = next;
+    owner.workspaceMembers = next.workspaceMembers;
+    owner.extraManifestFiles = next.extraManifestFiles;
   }
 
   /**
-   * v2.3: compute the union of (manifestPath + member-manifests +
-   * extraManifestFiles), dedup, and truncate-with-priority at
-   * MAX_WATCHED_PATHS. Truncation order: manifestPath first (always kept),
-   * then extraManifestFiles, then member manifests.
+   * v0.6: map a chokidar-emitted path to its owning root. Primary's manifest
+   * + extras + member-derived paths → primary; same for each additional root.
+   * Returns null when no root claims the path; caller logs + returns without
+   * rescanning (silent fallback to primary would spuriously invalidate
+   * unrelated caches).
+   */
+  private findOwningRoot(changedPath: string): RootEntry | null {
+    const resolved = path.resolve(changedPath);
+    for (const root of this.roots) {
+      if (path.resolve(root.manifestPath) === resolved) return root;
+      for (const e of root.extraManifestFiles ?? []) {
+        if (path.resolve(e) === resolved) return root;
+      }
+      const manifestType = root.previousScan.manifestType;
+      for (const m of root.workspaceMembers ?? []) {
+        const derived = deriveMemberManifest(root.projectRoot, m, manifestType);
+        if (derived && path.resolve(derived) === resolved) return root;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * v0.6: compute the union of (manifestPath + extras + members) for ALL
+   * roots, dedup, and truncate-with-priority at MAX_WATCHED_PATHS.
+   *
+   * Root-first truncate priority (per plan + Claude review fix):
+   *   1. ALL root manifestPaths (primary first, then each additional root in
+   *      BFS order) — a polyglot ecosystem root outranks the 257th workspace
+   *      member of the primary.
+   *   2. ALL extraManifestFiles (concatenated, primary first).
+   *   3. ALL workspace-derived member manifests (concatenated, primary first).
    */
   private computeWatchSet(): string[] {
-    const root = this.opts.projectRoot;
-    const manifestType = this.opts.initialScan.manifestType;
-    const memberManifests: string[] = [];
-    if (this.opts.workspaceMembers) {
-      for (const m of this.opts.workspaceMembers) {
-        const derived = deriveMemberManifest(root, m, manifestType);
+    const rootManifestPaths: string[] = [];
+    const allExtras: string[] = [];
+    const allMembers: string[] = [];
+    for (const root of this.roots) {
+      rootManifestPaths.push(root.manifestPath);
+      if (root.extraManifestFiles) allExtras.push(...root.extraManifestFiles);
+      const manifestType = root.previousScan.manifestType;
+      for (const m of root.workspaceMembers ?? []) {
+        const derived = deriveMemberManifest(root.projectRoot, m, manifestType);
         if (derived !== null) {
-          memberManifests.push(derived);
+          allMembers.push(derived);
         } else if (manifestType === null || !DISCOVERY_ONLY_TYPES.has(manifestType)) {
-          // v2.4: suppress the warn for discovery-only types (subproject
-          // surfacing without per-member watch).
           this.log.warn('manifest_watcher_member_unknown_ecosystem', { manifestType, member: m });
         }
       }
     }
-    const extras = this.opts.extraManifestFiles ?? [];
     const seen = new Set<string>();
     const ordered: string[] = [];
-    for (const p of [this.opts.manifestPath, ...extras, ...memberManifests]) {
+    for (const p of [...rootManifestPaths, ...allExtras, ...allMembers]) {
       if (!seen.has(p)) {
         seen.add(p);
         ordered.push(p);
@@ -265,14 +333,15 @@ export class ManifestWatcher {
    * stays unwatched and later edits to it don't trigger rescans.
    */
   private reconcileWatchSet(
+    owner: RootEntry,
     prevMembers: string[] | undefined,
     nextMembers: string[] | undefined,
     prevExtras: string[] | undefined,
     nextExtras: string[] | undefined,
   ): void {
     if (!this.watcher) return;
-    const root = this.opts.projectRoot;
-    const manifestType = this.previousScan.manifestType;
+    const root = owner.projectRoot;
+    const manifestType = owner.previousScan.manifestType;
     const toPath = (m: string): string | null => deriveMemberManifest(root, m, manifestType);
     const prevMemberSet = new Set(
       (prevMembers ?? []).map(toPath).filter((p): p is string => p !== null),

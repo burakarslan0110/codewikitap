@@ -95,38 +95,33 @@ export const METRIC_FLUSH_INTERVAL_MS = envNumber('CODEWIKI_METRIC_FLUSH_INTERVA
 export const METRIC_AGGREGATE_HIGH_VOLUME_NAMES = Object.freeze(['cache_hit', 'cache_miss']);
 
 // ---------------------------------------------------------------------------
-// v2.8 Startup auto-prewarm config
+// Recursive subdir scan (v0.6)
 // ---------------------------------------------------------------------------
 
-/** Opt-out: when true, the prewarmer is not instantiated at startup. */
-export const DISABLE_PREWARM = envBool('CODEWIKI_DISABLE_PREWARM');
+/**
+ * Max BFS depth for `scanProjectRecursive`. Bounds polyglot-monorepo
+ * traversal so pathological deep nesting (or symlink loops) cannot hang the
+ * scanner. Read INSIDE the function (not at module load) so tests can flip
+ * the env var per case. Default 8 covers `frontend/app/packages/X/src/...`
+ * style layouts without over-budgeting.
+ */
+export function getScanMaxDepth(): number {
+  const raw = process.env.CODEWIKI_SCAN_MAX_DEPTH;
+  if (!raw) return 8;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : 8;
+}
 
 /**
- * Per-session cap on deps appended to the prewarm queue. 0 = unlimited. When
- * the cap is reached, further inputs are dropped with `prewarm_skipped
- * reason=cap` + a warn-log. Allows 0 as an explicit "unlimited" sentinel —
- * envNumber's `> 0` guard would coerce 0 to the fallback, so we parse inline.
+ * Directories `scanProjectRecursive` never descends into. Build artifacts,
+ * vendored deps, VCS internals, and venv-style isolated environments. The
+ * set is closed (not user-extendable) — adding patterns here is a code-
+ * change PR, not a runtime knob.
  */
-export const PREWARM_MAX_DEPS = (() => {
-  const raw = process.env.CODEWIKI_PREWARM_MAX_DEPS;
-  if (!raw) return 0;
-  const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n >= 0 ? n : 0;
-})();
-
-/**
- * Delay (ms) between Prewarmer.start() and the first dequeue. Lets the stdio
- * handshake settle without contending with the bg worker. Default 2000 (v3
- * fix for the MCP `-32000` reconnect bug — RC1 defense L5; bumped from 0).
- * Allows 0 explicitly via env override `CODEWIKI_PREWARM_START_DELAY_MS=0` to
- * restore the v2.8 immediate-drain behavior for operators who need it.
- */
-export const PREWARM_START_DELAY_MS = (() => {
-  const raw = process.env.CODEWIKI_PREWARM_START_DELAY_MS;
-  if (raw === undefined) return 2000;
-  const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n >= 0 ? n : 2000;
-})();
+export const SCAN_IGNORE_DIRS = Object.freeze(new Set<string>([
+  'node_modules', '.git', 'target', 'dist', 'build', '.next',
+  '__pycache__', 'vendor', '.venv', '.nuxt', '.gradle', 'out', 'coverage',
+]));
 
 /**
  * MCP `-32000` reconnect fix (RC1 defense L3):

@@ -2,7 +2,7 @@
   "$schema": "https://code.claude.com/schemas/marketplace.json",
   "name": "burakarslan0110-codewikitap",
   "description": "Personal marketplace hosting CodeWiKiTap — the project-aware Google CodeWiki MCP server.",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "owner": {
     "name": "Burak Arslan",
     "email": "burakarslan0110@gmail.com",
@@ -16,7 +16,7 @@
         "package": "codewikitap"
       },
       "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents. 7 tools, hybrid sparse+dense retrieval, knowledge graph traversal, always-on citation enforcement.",
-      "version": "0.5.3",
+      "version": "0.6.0",
       "category": "documentation",
       "tags": [
         "mcp",

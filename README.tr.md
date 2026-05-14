@@ -579,7 +579,7 @@ Chat'te "react" demen yeterli — resolver onu `facebook/react`'a map'ler. Maven
 | `CODEWIKI_INCLUDE_DEV_DEPS` | kapalı | `devDependencies` de taransın (test tool dokümantasyonu gerektiğinde). |
 | `CODEWIKI_DISABLE_WATCH` | kapalı | Manifest değişikliği izlenmesin (CI/CD). |
 | `CODEWIKI_DISABLE_KG` | kapalı | Knowledge graph kurulmasın; `find_neighbors` kaydedilmesin. |
-| `CODEWIKI_DISABLE_PREWARM` | kapalı | Açılışta otomatik prewarm atlansın. |
+| `CODEWIKI_SCAN_MAX_DEPTH` | `8` | `list_project_dependencies` recursive alt klasör tarama BFS derinlik üst sınırı. |
 | `CODEWIKI_FORCE_NO_BM25` | kapalı | Vector-only modu (BM25 dalı atlanır). |
 | `CODEWIKI_RERANK_TOP_N` | `50` | Reranker'a verilen aday sayısı. |
 

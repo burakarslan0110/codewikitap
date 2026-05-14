@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
-import { scanProject, rescanManifest } from '../../src/services/project_scanner.js';
+import { scanProject, rescanManifest, scanProjectRecursive } from '../../src/services/project_scanner.js';
 import { ManifestError } from '../../src/types.js';
 
 const FIXTURES = path.resolve(__dirname, '..', 'fixtures', 'manifests');
@@ -740,6 +740,128 @@ describe('scanProject — v2.3 verify-phase regressions', () => {
       expect(r.dependencies.length).toBeGreaterThan(0);
     } finally {
       fs.rmSync(tmpGradle, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('scanProjectRecursive — downward BFS scan', () => {
+  let tmp: string;
+  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cwk-scan-rec-')); });
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('returns [singleScan] when cwd has one root manifest', () => {
+    fs.writeFileSync(path.join(tmp, 'package.json'), JSON.stringify({ dependencies: { react: '^19.0.0' } }));
+    const r = scanProjectRecursive(tmp);
+    expect(r).toHaveLength(1);
+    expect(r[0].manifestType).toBe('package.json');
+    expect(r[0].projectRoot).toBe(tmp);
+  });
+
+  it('returns [] when cwd has no manifest in tree (NO upward walk)', () => {
+    // tmp is empty; scanProjectRecursive must NOT walk up to find ancestor manifests.
+    const r = scanProjectRecursive(tmp);
+    expect(r).toEqual([]);
+  });
+
+  it('aggregates multiple sibling roots in BFS order (polyglot monorepo)', () => {
+    // tmp/frontend/package.json + tmp/backend/pom.xml + tmp/mobile/Cargo.toml
+    fs.mkdirSync(path.join(tmp, 'frontend'));
+    fs.writeFileSync(path.join(tmp, 'frontend', 'package.json'),
+      JSON.stringify({ dependencies: { react: '^19.0.0' } }));
+    fs.mkdirSync(path.join(tmp, 'backend'));
+    fs.writeFileSync(path.join(tmp, 'backend', 'pom.xml'),
+      '<?xml version="1.0"?><project><modelVersion>4.0.0</modelVersion><groupId>g</groupId><artifactId>a</artifactId><version>1</version><dependencies><dependency><groupId>com.example</groupId><artifactId>lib</artifactId><version>1.0</version></dependency></dependencies></project>');
+    fs.mkdirSync(path.join(tmp, 'mobile'));
+    fs.writeFileSync(path.join(tmp, 'mobile', 'Cargo.toml'),
+      '[package]\nname = "x"\nversion = "0.1.0"\n\n[dependencies]\ntokio = "1.37"\n');
+
+    const r = scanProjectRecursive(tmp);
+    const types = r.map((s) => s.manifestType).sort();
+    expect(types).toEqual(['Cargo.toml', 'package.json', 'pom.xml']);
+    // BFS finds all three roots without descending into any
+    expect(r.every((s) => s.dependencies.length > 0)).toBe(true);
+  });
+
+  it('does NOT descend into a workspace member subtree (visitedSubtrees dedup)', () => {
+    // tmp/frontend/package.json is a JS workspace including packages/*
+    // Each member also has its own package.json. recursive scan must return 1 ProjectScan, not 3.
+    fs.mkdirSync(path.join(tmp, 'frontend'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'frontend', 'package.json'), JSON.stringify({
+      name: 'mono', private: true, workspaces: ['packages/*'],
+    }));
+    fs.mkdirSync(path.join(tmp, 'frontend', 'packages', 'foo'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'frontend', 'packages', 'foo', 'package.json'),
+      JSON.stringify({ name: 'foo', version: '0.0.1', dependencies: { lodash: '^4.0.0' } }));
+    fs.mkdirSync(path.join(tmp, 'frontend', 'packages', 'bar'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'frontend', 'packages', 'bar', 'package.json'),
+      JSON.stringify({ name: 'bar', version: '0.0.1', dependencies: { 'date-fns': '^3.0.0' } }));
+
+    const r = scanProjectRecursive(tmp);
+    expect(r).toHaveLength(1);
+    expect(r[0].manifestType).toBe('package.json');
+    expect(r[0].projectRoot).toBe(path.join(tmp, 'frontend'));
+    // Members merged into root scan
+    expect(r[0].dependencies.map((d) => d.name).sort()).toEqual(['date-fns', 'lodash']);
+  });
+
+  it('skips ignore-set directories (node_modules, .git, dist, target, etc.)', () => {
+    // tmp/node_modules/some-pkg/package.json MUST NOT be returned.
+    fs.mkdirSync(path.join(tmp, 'node_modules', 'some-pkg'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'node_modules', 'some-pkg', 'package.json'),
+      JSON.stringify({ dependencies: { x: '1' } }));
+    fs.mkdirSync(path.join(tmp, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, '.git', 'package.json'), '{}');
+    fs.mkdirSync(path.join(tmp, 'dist'));
+    fs.writeFileSync(path.join(tmp, 'dist', 'package.json'), '{}');
+    // Real manifest at tmp/app/package.json should be the only result.
+    fs.mkdirSync(path.join(tmp, 'app'));
+    fs.writeFileSync(path.join(tmp, 'app', 'package.json'),
+      JSON.stringify({ dependencies: { real: '1.0.0' } }));
+
+    const r = scanProjectRecursive(tmp);
+    expect(r).toHaveLength(1);
+    expect(r[0].projectRoot).toBe(path.join(tmp, 'app'));
+  });
+
+  it('respects CODEWIKI_SCAN_MAX_DEPTH (env-set bound)', () => {
+    // 3 levels deep — should NOT be reached when SCAN_MAX_DEPTH=2.
+    fs.mkdirSync(path.join(tmp, 'a', 'b', 'c'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'a', 'b', 'c', 'package.json'),
+      JSON.stringify({ dependencies: { deep: '1' } }));
+
+    const prev = process.env.CODEWIKI_SCAN_MAX_DEPTH;
+    process.env.CODEWIKI_SCAN_MAX_DEPTH = '2';
+    try {
+      // Re-import for fresh env capture (config.ts reads env at module load —
+      // but scanProjectRecursive reads SCAN_MAX_DEPTH at call time per the
+      // plan's pure-fn contract). Test asserts the documented bound.
+      const r = scanProjectRecursive(tmp);
+      expect(r).toEqual([]);
+    } finally {
+      if (prev === undefined) delete process.env.CODEWIKI_SCAN_MAX_DEPTH;
+      else process.env.CODEWIKI_SCAN_MAX_DEPTH = prev;
+    }
+  });
+
+  it('SCAN_MAX_DEPTH boundary: depth-2 manifest IS found while depth-4 is skipped at max_depth=3', () => {
+    // Manifest at depth 2 (tmp/a/b/package.json) — within bound.
+    fs.mkdirSync(path.join(tmp, 'a', 'b'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'a', 'b', 'package.json'),
+      JSON.stringify({ dependencies: { shallow: '1' } }));
+    // Manifest at depth 4 (tmp/x/y/z/w/package.json) — beyond bound.
+    fs.mkdirSync(path.join(tmp, 'x', 'y', 'z', 'w'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'x', 'y', 'z', 'w', 'package.json'),
+      JSON.stringify({ dependencies: { deep: '1' } }));
+
+    const prev = process.env.CODEWIKI_SCAN_MAX_DEPTH;
+    process.env.CODEWIKI_SCAN_MAX_DEPTH = '3';
+    try {
+      const r = scanProjectRecursive(tmp);
+      expect(r).toHaveLength(1);
+      expect(r[0].projectRoot).toBe(path.join(tmp, 'a', 'b'));
+    } finally {
+      if (prev === undefined) delete process.env.CODEWIKI_SCAN_MAX_DEPTH;
+      else process.env.CODEWIKI_SCAN_MAX_DEPTH = prev;
     }
   });
 });

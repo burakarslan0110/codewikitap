@@ -11,20 +11,21 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import { scanProject } from '../services/project_scanner.js';
+import { scanProject, scanProjectRecursive } from '../services/project_scanner.js';
 import { resolveRepo } from '../services/repo_resolver.js';
 import { Cache } from '../services/cache.js';
 import { CodeWikiClient } from '../services/codewiki_client.js';
 import { enrichWithBomImports } from '../services/bom_resolver.js';
 import { enrichWithParentPom } from '../services/parent_resolver.js';
-import { Dependency } from '../types.js';
+import { detectFrameworks } from '../services/framework_detector.js';
+import { Dependency, FrameworkContext, ProjectScan } from '../types.js';
 import { INCLUDE_DEV_DEPS_DEFAULT } from '../config.js';
 import { withMetrics } from './withMetrics.js';
 
 // Exported so the unit test can assert the 240-char budget without coupling
 // to the MCP server's private tool registry.
 export const TOOL_DESCRIPTION =
-  "List the project's direct deps and which have Google CodeWiki docs. npm/pnpm/yarn workspaces, PyPI/Poetry, Go (+go.work), Cargo, Composer, Maven (BOM), Gradle, RubyGems, NuGet (sln+CPM). Flags: includeDev=true; includeOptional=false.";
+  "Lists direct deps + framework context across ALL manifests under cwd. Polyglot monorepos return `manifests[]`; top-level fields project the cwd-nearest manifest. Flags: includeDev=true; includeOptional=false.";
 
 const inputSchema = z.object({
   includeDev: z.boolean().optional(),
@@ -45,22 +46,44 @@ const inputSchema = z.object({
     .optional()
     .describe('v2.5: max deps to return; default unlimited. Pair with `total` and `offset` to walk pages.'),
 });
+const depShape = z.object({
+  name: z.string(),
+  ecosystem: z.string(),
+  resolvedRepo: z.string().nullable(),
+  hasWiki: z.boolean().nullable(),
+  pageCount: z.number().nullable(),
+  kind: z.enum(['runtime', 'dev', 'optional']).optional(),
+  declaredVersion: z.string().optional(),
+});
+const frameworkShape = z.object({
+  name: z.string(),
+  confidence: z.enum(['high', 'medium', 'low']),
+  sourceRepo: z.string(),
+  detectedFrom: z.string(),
+});
+const manifestShape = z.object({
+  projectRoot: z.string(),
+  manifestType: z.string(),
+  matchedManifestPath: z.string().optional(),
+  dependencies: z.array(depShape),
+  frameworks: z.array(frameworkShape),
+});
 const outputSchema = z.object({
+  /** v0.6: cwd-nearest "primary" projection — first entry in `manifests[]`, or null when no manifest found. */
   projectRoot: z.string().nullable(),
   manifestType: z.string().nullable(),
-  dependencies: z.array(
-    z.object({
-      name: z.string(),
-      ecosystem: z.string(),
-      resolvedRepo: z.string().nullable(),
-      hasWiki: z.boolean().nullable(),
-      pageCount: z.number().nullable(),
-      kind: z.enum(['runtime', 'dev', 'optional']).optional(),
-      declaredVersion: z.string().optional(),
-    }),
-  ),
+  dependencies: z.array(depShape),
+  /** Primary projection: count of `manifests[0].dependencies`. Legacy clients use this. */
   total: z.number().int().nonnegative(),
+  /** v0.6: every root manifest discovered under cwd via recursive scan (with upward-walk fallback). */
+  manifests: z.array(manifestShape),
+  /** v0.6: total deps summed across all `manifests[i].dependencies`. */
+  manifestsTotal: z.number().int().nonnegative(),
 });
+
+// Exported so the integration test can round-trip the response through
+// `outputSchema.parse(...)` as the additive-schema smoke gate.
+export const LIST_PROJECT_DEPENDENCIES_OUTPUT_SCHEMA = outputSchema;
 
 export interface ToolDeps {
   cache: Cache;
@@ -87,36 +110,54 @@ export function registerListProjectDependencies(server: McpServer, deps: ToolDep
       const effectiveIncludeOptional = args?.includeOptional !== false;
       const offset = Math.max(0, args?.offset ?? 0);
       const limit = args?.limit !== undefined && args.limit > 0 ? args.limit : undefined;
-      const initialScan = scanProject(deps.cwd, {
+      const scanOpts = {
         includeDev: effectiveIncludeDev,
         includeOptional: effectiveIncludeOptional,
-      });
-      // v2.5: parent POM resolution runs FIRST. enrichWithParentPom (a) patches
-      // dep.declaredVersion entries from the parent's literal <dependencyManagement>
-      // (preserving any version the child already set), and (b) APPENDS the
-      // parent's nested <scope>import</scope> BOMs onto scan.bomImports so the
-      // recursive bom_resolver walker (running NEXT) sees them at depth 0
-      // alongside the child's own BOMs. Spring Boot Starter Parent canonical
-      // pattern — parent has no literal DM versions, only a <scope>import</scope>
-      // of spring-boot-dependencies — works end-to-end via this chain.
-      // v2.4: BOM enrichment runs between scan and resolve so resolved repos
-      // see post-BOM `declaredVersion` (defense-in-depth — current resolvers
-      // do not consume declaredVersion, but the contract surfaces it to MCP
-      // clients downstream).
-      const parentEnriched = await enrichWithParentPom(initialScan, deps.cache);
-      const scan = await enrichWithBomImports(parentEnriched, deps.cache);
-      // v2.5: full pipeline runs to completion (preserves the v1 list-everything
-      // promise + caches resolves for subsequent pages); slice happens after.
-      // Pagination caps response SIZE only, not first-page latency.
-      const allOut = await Promise.all(scan.dependencies.map((d) => resolveAndProbe(d, deps)));
-      const total = allOut.length;
+      };
+      // v0.6: downward recursive scan first; fall back to upward walk only
+      // when no manifest is found anywhere under cwd. Mirrors the polyglot-
+      // monorepo + deep-subdir UX the user requested.
+      let rawScans: ProjectScan[] = scanProjectRecursive(deps.cwd, scanOpts);
+      if (rawScans.length === 0) {
+        const upward = scanProject(deps.cwd, scanOpts);
+        if (upward.projectRoot && upward.manifestType) rawScans = [upward];
+      }
+
+      // Per-scan enrichment + resolve+probe. Maven parent + BOM resolution
+      // is preserved verbatim — runs ONCE per manifest, not flattened.
+      const manifestEntries = await Promise.all(rawScans.map(async (raw) => {
+        const parentEnriched = await enrichWithParentPom(raw, deps.cache);
+        const scan = await enrichWithBomImports(parentEnriched, deps.cache);
+        const resolvedDeps = await Promise.all(scan.dependencies.map((d) => resolveAndProbe(d, deps)));
+        const frameworks: FrameworkContext[] = scan.manifestType
+          ? detectFrameworks(scan.dependencies, scan.manifestType)
+          : [];
+        return {
+          projectRoot: scan.projectRoot as string,
+          manifestType: scan.manifestType as string,
+          ...(scan.matchedManifestPath ? { matchedManifestPath: scan.matchedManifestPath } : {}),
+          dependencies: resolvedDeps,
+          frameworks,
+        };
+      }));
+
+      // Top-level "primary projection" = manifests[0]. Pagination applied
+      // ONLY to the primary's dependencies; manifests[1..] return full lists.
+      // This keeps legacy single-manifest clients bit-equal AND keeps
+      // ordering deterministic across paginated calls.
+      const primary = manifestEntries[0];
+      const primaryDeps = primary?.dependencies ?? [];
       const sliceEnd = limit !== undefined ? offset + limit : undefined;
-      const out = allOut.slice(offset, sliceEnd);
+      const pagedPrimary = primaryDeps.slice(offset, sliceEnd);
+      const manifestsTotal = manifestEntries.reduce((acc, m) => acc + m.dependencies.length, 0);
+
       const result = {
-        projectRoot: scan.projectRoot,
-        manifestType: scan.manifestType,
-        dependencies: out,
-        total,
+        projectRoot: primary?.projectRoot ?? null,
+        manifestType: primary?.manifestType ?? null,
+        dependencies: pagedPrimary,
+        total: primaryDeps.length,
+        manifests: manifestEntries,
+        manifestsTotal,
       };
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],

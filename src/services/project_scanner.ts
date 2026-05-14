@@ -37,6 +37,8 @@ import {
   MAX_MANIFEST_BYTES,
   MAX_WALK_DEPTH,
   MAX_WORKSPACE_MEMBERS,
+  SCAN_IGNORE_DIRS,
+  getScanMaxDepth,
 } from '../config.js';
 import { getLogger } from '../logging.js';
 
@@ -464,6 +466,126 @@ function scanProjectWithOpts(startDir: string, opts: ScanOpts): ProjectScan {
   }
 
   return { projectRoot: null, manifestType: null, dependencies: [] };
+}
+
+/**
+ * v0.6: Recursive (downward) project scan. BFS from `rootDir`, returning
+ * EVERY root manifest discovered in the subtree.
+ *
+ * Semantics (vs. `scanProject`):
+ *   - `scanProject` walks UP toward the home dir, returns the first manifest.
+ *   - `scanProjectRecursive` walks DOWN into the tree, returns ALL manifests.
+ *     Never walks up. Callers wanting upward fallback chain it explicitly.
+ *
+ * When `scanAtDir(dir)` finds a manifest:
+ *   - Emit the resulting ProjectScan.
+ *   - DO NOT descend into that dir (workspace traversal in scanAtDir already
+ *     enumerates the relevant member manifests via `workspaceMembers`).
+ *   - Add `dir` AND every entry in `scan.workspaceMembers` to
+ *     `visitedSubtrees`. Subsequent BFS candidates whose path is contained
+ *     by any visited entry are skipped (prevents JS workspace members from
+ *     re-emerging as standalone roots).
+ *
+ * Hardening + bounds:
+ *   - Ignore set (`SCAN_IGNORE_DIRS`): node_modules, .git, target, dist,
+ *     build, .next, __pycache__, vendor, .venv, .nuxt, .gradle, out, coverage.
+ *   - Max BFS depth: `getScanMaxDepth()` (default 8; env
+ *     `CODEWIKI_SCAN_MAX_DEPTH`).
+ *   - Symlinks rejected via `fs.lstatSync` (no follow).
+ *   - Dedup defense-in-depth: `(matchedManifestPath ||
+ *     `${projectRoot}::${manifestType}`)` first-wins.
+ *
+ * Pure: no async, no network, no shared state.
+ */
+export function scanProjectRecursive(rootDir: string, opts?: ScanOpts): ProjectScan[] {
+  const effective: ScanOpts = {
+    includeDev: opts?.includeDev ?? INCLUDE_DEV_DEPS_DEFAULT,
+    includeOptional: opts?.includeOptional ?? false,
+  };
+  const start = path.resolve(rootDir);
+  const maxDepth = getScanMaxDepth();
+  const results: ProjectScan[] = [];
+  const visitedSubtrees: string[] = [];
+  const emittedKeys = new Set<string>();
+  const queue: Array<{ dir: string; depth: number }> = [{ dir: start, depth: 0 }];
+
+  while (queue.length > 0) {
+    const { dir, depth } = queue.shift()!;
+    if (isUnderAny(dir, visitedSubtrees)) continue;
+
+    let scan: ProjectScan | null = null;
+    try {
+      scan = scanAtDir(dir, effective);
+    } catch {
+      // scanAtDir surfaces ManifestError for hardening violations (symlinks,
+      // size cap, binary content). A poisoned manifest in one subtree must
+      // not abort the whole recursive scan — skip the dir + log via the
+      // existing scanner hooks.
+      scan = null;
+    }
+    if (scan && scan.manifestType) {
+      const key = scan.matchedManifestPath ?? `${scan.projectRoot ?? dir}::${scan.manifestType}`;
+      if (!emittedKeys.has(key)) {
+        emittedKeys.add(key);
+        results.push(scan);
+        visitedSubtrees.push(dir);
+        if (scan.workspaceMembers) {
+          for (const m of scan.workspaceMembers) {
+            const memberAbs = path.isAbsolute(m) ? m : path.resolve(scan.projectRoot ?? dir, m);
+            visitedSubtrees.push(memberAbs);
+          }
+        }
+      }
+      // Whether or not we just emitted, do NOT descend (workspace handler
+      // already enumerated children).
+      continue;
+    }
+
+    if (depth >= maxDepth) continue;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    // Deterministic BFS order — readdirSync is OS-dependent and a polyglot
+    // monorepo's "primary" manifest selection (cwd-nearest, first emitted)
+    // must not change between runs or platforms.
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (SCAN_IGNORE_DIRS.has(entry.name)) continue;
+      if (entry.name.startsWith('.') && entry.name !== '.') continue;
+      const child = path.join(dir, entry.name);
+      try {
+        // Symlinks rejected; mirrors existing manifest-path hardening.
+        const st = fs.lstatSync(child);
+        if (!st.isDirectory()) continue;
+      } catch {
+        continue;
+      }
+      if (isUnderAny(child, visitedSubtrees)) continue;
+      queue.push({ dir: child, depth: depth + 1 });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Returns true when `candidate` is equal to or strictly under any of the
+ * given visited directories. Pure helper for `scanProjectRecursive`'s BFS
+ * frontier filter.
+ */
+function isUnderAny(candidate: string, visited: readonly string[]): boolean {
+  const cand = path.resolve(candidate);
+  for (const v of visited) {
+    const root = path.resolve(v);
+    if (cand === root) return true;
+    const rel = path.relative(root, cand);
+    if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) return true;
+  }
+  return false;
 }
 
 /**

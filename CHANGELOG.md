@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-15
+
+### BREAKING
+
+- **Boot-time auto-prewarmer removed.** Indexing is now exclusively user-triggered via the `request_indexing` MCP tool. The watcher's `onDepsAdded → prewarmer.enqueueDeps` wiring is also gone. The `CODEWIKI_DISABLE_PREWARM`, `CODEWIKI_PREWARM_MAX_DEPS`, and `CODEWIKI_PREWARM_START_DELAY_MS` env vars no longer exist; setting them has no effect.
+
+### Added
+
+- **Recursive subdir scan.** `list_project_dependencies` now BFS-walks every subdirectory of cwd and emits all root manifests in `manifests[]`. Ignore set: `node_modules`, `.git`, `target`, `dist`, `build`, `.next`, `__pycache__`, `vendor`, `.venv`, `.nuxt`, `.gradle`, `out`, `coverage`. Bound by `CODEWIKI_SCAN_MAX_DEPTH` (default 8). Polyglot monorepos (frontend/+backend/+mobile/) work end-to-end without ceremony.
+- **Framework context.** Every `manifests[i]` entry includes `frameworks: [{ name, confidence, sourceRepo, detectedFrom }]`. Curated signatures (~30) cover next.js, Nuxt, React, Angular, Svelte, NestJS, Express, Fastify, Spring Boot, Spring Framework, Django, Flask, FastAPI, Rails, Gin, Echo, Fiber, Chi, Actix, Axum, Rocket, Tokio (medium), ASP.NET Core, Blazor.
+- **`ManifestWatcher.additionalRoots`** opt — single chokidar instance, path-to-root dispatch, root-first truncate priority at `MAX_WATCHED_PATHS=512`.
+
+### Changed
+
+- **`list_project_dependencies` output schema (additive, lock-list-safe).** New top-level `manifests[]` array + `manifestsTotal: number`. Top-level `projectRoot` / `manifestType` / `dependencies` / `total` remain as the "primary projection" of `manifests[0]` (cwd-nearest manifest) for back-compat. Pagination (`offset` / `limit`) applies ONLY to primary.
+
+### Removed
+
+- `src/services/prewarmer.ts`, `tests/unit/prewarmer.test.ts`, `tests/integration/prewarm_lifecycle.integration.test.ts`, `.claude/rules/codewikitap-prewarmer.md`.
+- `PrewarmerError` / `PrewarmerErrorKind` types.
+- `ManifestWatcherOpts.onDepsAdded` callback (YAGNI; no consumer remained after prewarmer removal).
+
 ## [0.5.3] - 2026-05-14
 
 ### Fixed

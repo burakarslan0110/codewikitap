@@ -17,6 +17,28 @@ export interface Dependency {
 export type RepoSource = 'npm-registry' | 'pypi' | 'go-proxy' | 'go-vanity' | 'fuzzy' | 'crates-io' | 'packagist' | 'maven-central' | 'rubygems' | 'nuget';
 export type Confidence = 'high' | 'medium' | 'low';
 
+/**
+ * v0.6: detected framework attached to a `ProjectScan` by `detectFrameworks`.
+ * The agent uses this as a structured shortcut — `sourceRepo` is the GitHub
+ * `owner/repo` slug for which to call `request_indexing` / `get_page` /
+ * `find_chunks`.
+ *
+ * Confidence semantics:
+ *   - 'high'   = the framework runtime entry itself (next, django,
+ *                spring-boot-starter-*, @angular/core). Import implies use.
+ *   - 'medium' = framework-adjacent core runtime that is NOT framework-
+ *                defining on its own (tokio runtime, axios, undici).
+ *   - 'low'    = reserved for pattern-based fuzzy match. Unused in v0.6.
+ */
+export interface FrameworkContext {
+  name: string;
+  confidence: Confidence;
+  /** GitHub `owner/repo` for `request_indexing` / `get_page`. */
+  sourceRepo: string;
+  /** Where it was found, e.g. `package.json:dependencies.next`. */
+  detectedFrom: string;
+}
+
 export interface ResolvedRepo {
   owner: string;
   repo: string;
@@ -328,25 +350,6 @@ export class GraphIndexerError extends Error {
   constructor(kind: GraphIndexerErrorKind, message: string) {
     super(message);
     this.name = 'GraphIndexerError';
-    this.kind = kind;
-  }
-}
-
-/**
- * v2.8: startup auto-prewarm. The Prewarmer's worker loop catches every
- * downstream error and converts it to a `prewarm_skipped` metric + warn-log.
- * The only path that THROWS a PrewarmerError is the lifecycle surface
- * (`start()` called twice without intervening `stop()`, illegal state
- * transitions). Mirrors the RetrieverError / SerializerError shape.
- */
-export type PrewarmerErrorKind = 'already_started' | 'invalid_state';
-
-export class PrewarmerError extends Error {
-  readonly kind: PrewarmerErrorKind;
-
-  constructor(kind: PrewarmerErrorKind, message: string) {
-    super(message);
-    this.name = 'PrewarmerError';
     this.kind = kind;
   }
 }
