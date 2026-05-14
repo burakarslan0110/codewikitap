@@ -1,8 +1,10 @@
 /**
- * Tool: get_page
+ * Tool: get_page.
  *
- * Fetch one CodeWiki page (or a sub-section subtree) for a repository.
- * Supports heading-aware drill-down via the optional `subsection` slug.
+ * Two operating modes selected by inputs:
+ *   - `listPages: true` → returns the page index (table of contents).
+ *   - Otherwise (default) → fetches one CodeWiki page or sub-section subtree.
+ *     `slug` selects the top-level page; `subsection` drills into a heading.
  */
 
 import { z } from 'zod';
@@ -22,8 +24,12 @@ const inputSchema = z.object({
   subsection: z
     .string()
     .optional()
-    .describe('Deeper heading slug from list_pages — when given, returns only that subsection subtree.'),
+    .describe('Deeper heading slug — when given, returns only that subsection subtree.'),
   maxTokens: z.number().int().positive().optional().describe('Token budget (estimate). Default 8000.'),
+  listPages: z
+    .boolean()
+    .optional()
+    .describe('When true, returns the page index (table of contents) for this repo instead of fetching a page. Other args ignored.'),
 });
 
 const FallbacksSchema = z.array(
@@ -33,6 +39,14 @@ const FallbacksSchema = z.array(
     label: z.string().optional(),
   }),
 );
+
+const PageIndexEntrySchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  level: z.number(),
+  parentSlug: z.string().nullable(),
+  hasDiagrams: z.boolean(),
+});
 
 const outputSchema = z.object({
   repo: z.string().optional(),
@@ -44,7 +58,9 @@ const outputSchema = z.object({
     .optional(),
   truncated: z.boolean().optional(),
   availableSubsections: z.array(z.string()).optional(),
-  status: z.enum(['no_docs', 'rate_limited', 'retry', 'no_match']).optional(),
+  // Page-index branch output (listPages: true).
+  pageIndex: z.array(PageIndexEntrySchema).optional(),
+  status: z.enum(['no_docs', 'rate_limited', 'retry', 'no_match', 'no_wiki']).optional(),
   fallbacks: FallbacksSchema.optional(),
   retryAfterSeconds: z.number().optional(),
   reason: z.string().optional(),
@@ -58,14 +74,19 @@ export function registerGetPage(server: McpServer, deps: ToolDeps): void {
   server.registerTool(
     'get_page',
     {
-      title: 'Get a CodeWiki page or sub-section',
+      title: 'Get a CodeWiki page, sub-section, or page index',
       description:
-        'Fetch one CodeWiki page or sub-section by slug. Pass `subsection` (a deeper slug from list_pages) for narrow drill-down. Always surface the returned citation URL to the user.',
+        'Fetch a CodeWiki page by slug, or set listPages:true to get the page index for the repo. subsection drills into a heading subtree. Always surface citation.sourceUrl.',
       inputSchema: inputSchema.shape,
       outputSchema: outputSchema.shape,
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
-    withMetrics('get_page', async ({ repo, slug, subsection, maxTokens }: { repo: string; slug?: string; subsection?: string; maxTokens?: number }) => {
+    withMetrics('get_page', async ({ repo, slug, subsection, maxTokens, listPages }: { repo: string; slug?: string; subsection?: string; maxTokens?: number; listPages?: boolean }) => {
+      // Page-index branch.
+      if (listPages === true) {
+        const r = await deps.client.listPages(repo);
+        return { content: [{ type: 'text' as const, text: JSON.stringify(r, null, 2) }], structuredContent: r };
+      }
       const r = await deps.client.getPage(repo, slug, subsection);
       if ('status' in r) {
         return { content: [{ type: 'text' as const, text: JSON.stringify(r, null, 2) }], structuredContent: r };

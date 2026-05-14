@@ -278,29 +278,13 @@ Skipped when the agent already knows the slug. Used when a user says "look up do
    "rails"  ─►  RubyGems      ─►  source_code_uri ─►  rails/rails
 ```
 
-### 3. `list_pages` — the table of contents
+### 3. `get_page` — fetch one page, sub-section, or the page index
 
 ```
-   Input:  { owner, repo }
-   Output: [
-     { slug: "getting-started",     title: "Getting Started",   depth: 0 },
-     { slug: "app-router",          title: "App Router",        depth: 0,
-       subsections: [
-         "data-fetching",
-         "caching/route-cache",
-         "caching/data-cache",
-         "caching/on-demand-revalidation",
-         ...
-       ]
-     },
-     ...
-   ]
-```
-
-### 4. `get_page` — fetch one page (or sub-section) as Markdown
-
-```
-   Input:  { owner, repo, slug, subsection? }
+   Input:  { owner, repo, slug?, subsection?, listPages? }
+        │
+        ├─ listPages: true ─► returns the table of contents:
+        │                       [{ slug, title, level, parentSlug, hasDiagrams }, ...]
         │
         ▼
    cache.db hit?
@@ -314,11 +298,20 @@ Skipped when the agent already knows the slug. Used when a user says "look up do
    Markdown + diagrams + code + the citation footer (byte-equal, asserted)
 ```
 
-### 5. `find_chunks` — the workhorse (hybrid RAG)
+### 4. `find_chunks` — the workhorse (hybrid RAG, project- or off-project)
 
 See the diagram above. The thing to know is that **five scores** come back with each chunk: `vectorScore`, `bm25Score`, `rrfScore`, `rerankScore`, plus the two pre-fusion ranks. If the agent (or you) ever wonder *why* a chunk was returned, the answer is fully inspectable.
 
-### 6. `find_neighbors` — knowledge-graph traversal
+**Off-project query.** Omit `repo` to search across all repos already indexed in the local cache. To ask CodeWiki about a brand-new repo that isn't in your dependencies, compose three tools:
+
+```
+   resolve_repo({ query: "react" })                              → { owner: "facebook", repo: "react" }
+   request_indexing({ repo: "facebook/react" })                  → { status: "ready" | "index_building" }
+   find_chunks({ query: "rules of hooks", repo: "facebook/react" })
+                                                                 → ranked chunks with citations
+```
+
+### 5. `find_neighbors` — knowledge-graph traversal
 
 Five stored edge kinds plus a query-time-derived `dep_link`:
 
@@ -334,7 +327,7 @@ Five stored edge kinds plus a query-time-derived `dep_link`:
 
 With the optional `query` parameter, neighbors are re-ranked by semantic similarity — the embedder is reused, no separate model.
 
-### 7. `request_indexing` — pre-warm (the only non-readonly tool)
+### 6. `request_indexing` — pre-warm (the only non-readonly tool)
 
 A polite "please build the index for this repo now so my next call doesn't pay the cold start." Useful when the agent has decided it will explore a library before the user actually asks anything about it.
 
@@ -394,12 +387,12 @@ A polite "please build the index for this repo now so my next call doesn't pay t
 
 ```
    Agent's tools:
-     resolve_repo("@tanstack/react-query")       → TanStack/query
-     request_indexing({ owner, repo })           → pre-warm
-     list_pages({ owner, repo })                 → 14 pages
-     find_chunks({ query: "core concepts",       → 5 chunks
-                   repos: ["TanStack/query"], k: 5 })
-     get_page({ slug: "guides/important-defaults" })
+     resolve_repo("@tanstack/react-query")             → TanStack/query
+     request_indexing({ owner, repo })                 → pre-warm
+     get_page({ owner, repo, listPages: true })        → 14 pages
+     find_chunks({ query: "core concepts",             → 5 chunks
+                   repo: "TanStack/query", k: 5 })
+     get_page({ owner, repo, slug: "guides/important-defaults" })
 
    What the user sees:
      A grounded, citation-laden overview — "queries", "mutations",
@@ -593,6 +586,27 @@ Defaults are sufficient for most cases. The variables you might actually reach f
 | `CODEWIKI_RERANK_TOP_N` | `50` | Candidate count passed to the reranker. |
 
 Full reference is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Native dependencies (sqlite-vec, better-sqlite3)
+
+Both `sqlite-vec` and `better-sqlite3` are declared as **optional native dependencies**. Install never fails on a platform without a published prebuilt:
+
+| Native dep | When unavailable | Effect |
+|---|---|---|
+| `better-sqlite3` | macOS/Windows without prebuilt + no toolchain | In-memory cache fallback; no on-disk `cache.db` (queries still work, restart loses cache) |
+| `sqlite-vec` | macOS SIP, sandbox, Windows ARM, Alpine musl | Pure-JS cosine fallback in `vector_store.ts`; ~5–10× slower vector queries on large repos. Native cosine ranking still mathematically equivalent. |
+
+On boot the server emits one structured stderr line:
+
+```json
+{"level":"info","msg":"runtime_capabilities","betterSqlite3":true,"sqliteVec":false,"playwright":"ready","nodeVersion":"22.5.0",...}
+```
+
+If you see `sqliteVec: false` and queries feel slow, install the matching `sqlite-vec` prebuilt or rebuild from source:
+
+```
+npm rebuild sqlite-vec
+```
 
 ### Troubleshooting: MCP `-32000` on cold start
 

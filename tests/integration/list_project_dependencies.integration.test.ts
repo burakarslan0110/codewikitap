@@ -245,7 +245,6 @@ describe('v2.6 — TS-009: 7-tool surface lock (request_indexing added)', () => 
           'find_chunks',
           'find_neighbors',
           'get_page',
-          'list_pages',
           'list_project_dependencies',
           'request_indexing',
           'resolve_repo',

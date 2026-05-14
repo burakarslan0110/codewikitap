@@ -69,6 +69,14 @@ export interface PlaywrightDriverOptions {
   readyPromise?: Promise<void>;
 }
 
+/**
+ * `'pending'` between construction and `readyPromise` settle; `'ready'` after
+ * resolution; `'failed'` after rejection. Read by `detectRuntimeCapabilities`
+ * in `src/runtime_capabilities.ts` so the boot-time stderr log shows users
+ * whether Playwright bootstrap succeeded.
+ */
+export type PlaywrightDriverReadyState = 'pending' | 'ready' | 'failed';
+
 export class PlaywrightDriver {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
@@ -77,6 +85,7 @@ export class PlaywrightDriver {
   private readonly maxConcurrentPages: number;
   private readonly channel: 'chromium' | 'chromium-headless-shell';
   private readonly readyPromise: Promise<void>;
+  private _readyState: PlaywrightDriverReadyState = 'pending';
 
   // Semaphore: counter + FIFO queue of waiting callers.
   private slotsAvailable: number;
@@ -87,13 +96,17 @@ export class PlaywrightDriver {
     this.channel = opts.channel ?? 'chromium-headless-shell';
     this.slotsAvailable = this.maxConcurrentPages;
     this.readyPromise = opts.readyPromise ?? Promise.resolve();
-    // Attach a SILENCE observer immediately. Without this, the time window
-    // between construction and the first `ensureLaunched` await produces
-    // an "unhandled rejection" warning when callers pass a pre-rejected
-    // promise. The silence handler observes the rejection but does not
-    // consume it — `ensureLaunched` re-awaits the SAME promise and still
-    // sees the rejection from there.
-    this.readyPromise.catch(() => { /* observed via ensureLaunched */ });
+    // Track readyState alongside the silence observer. The same .then/.catch
+    // chain serves both purposes — observing rejection AND flipping the flag
+    // — so callers (runtime_capabilities) can read state without awaiting.
+    this.readyPromise.then(
+      () => { this._readyState = 'ready'; },
+      () => { this._readyState = 'failed'; },
+    );
+  }
+
+  get readyState(): PlaywrightDriverReadyState {
+    return this._readyState;
   }
 
   get isLaunched(): boolean {

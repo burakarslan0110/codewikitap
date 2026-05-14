@@ -95,11 +95,11 @@ Releases are automated via `.github/workflows/release.yml`, triggered by pushing
 ### Release Flow
 
 ```bash
-# 1. Bump version in package.json (e.g., 0.3.0 → 0.3.1)
+# 1. Bump version in package.json (e.g., 0.5.1 → 0.5.2)
 # 2. Update CHANGELOG.md with the new version entry
 # 3. Commit + tag
-git commit -am "release: v0.3.1"
-git tag v0.3.1
+git commit -am "release: v0.5.2"
+git tag v0.5.2
 git push origin main --tags
 ```
 

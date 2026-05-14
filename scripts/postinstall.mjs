@@ -53,6 +53,14 @@ try {
   warn('');
   warn('    npx playwright install --only-shell chromium');
   warn('');
+  if (process.platform === 'win32') {
+    warn('Windows hint: if the install fails with "MSBuild not found" or a native');
+    warn('compile error from a sibling optional dep (better-sqlite3, sqlite-vec),');
+    warn('install VS Build Tools 2022 (`npm config set msvs_version 2022`) or run');
+    warn('   npm install --no-optional');
+    warn('to skip native deps. CodeWikiTap engages in-memory + pure-JS fallback.');
+    warn('');
+  }
   if (err && typeof err.message === 'string') {
     warn(`Reason: ${err.message.split('\n')[0]}`);
   }

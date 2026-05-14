@@ -178,19 +178,18 @@ describe('AUDIT_TS_003: resolve_repo happy + degraded', () => {
   });
 });
 
-// ----- AUDIT_TS_004: list_pages -----
-describe('AUDIT_TS_004: list_pages happy + degraded', () => {
+// ----- AUDIT_TS_004: get_page page-index branch -----
+describe('AUDIT_TS_004: get_page listPages happy + degraded', () => {
   it('happy path returns pageIndex for indexed repo', async () => {
-    const r = await mcpClient.callTool({ name: 'list_pages', arguments: { repo: 'audit/fixture' } });
+    const r = await mcpClient.callTool({ name: 'get_page', arguments: { repo: 'audit/fixture', listPages: true } });
     const s = struct(r);
-    // Either status: 'ok' with pages, or status not present (data inline)
     expect(s.repo).toBe('audit/fixture');
   });
 
   it('degraded: unknown repo returns no_wiki envelope', async () => {
     const r = await mcpClient.callTool({
-      name: 'list_pages',
-      arguments: { repo: 'definitely/not-indexed' },
+      name: 'get_page',
+      arguments: { repo: 'definitely/not-indexed', listPages: true },
     });
     const s = struct(r);
     expect(s.status).toBe('no_wiki');

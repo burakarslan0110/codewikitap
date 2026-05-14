@@ -71,8 +71,15 @@ const EMBED_BATCH_SIZE = 16;
  */
 const KG_DISABLED = process.env.CODEWIKI_DISABLE_KG === '1';
 
+/** Rolling window of recent successful build durations (ms). */
+const ESTIMATE_WINDOW_SIZE = 10;
+/** Cold-path default (ms) used when no successful build has been observed yet. */
+const ESTIMATE_COLD_DEFAULT_MS = 8000;
+
 export class Indexer {
   private readonly inflight = new Map<string, Promise<IndexerResult>>();
+  /** Rolling window of recent successful build durations for estimateRemainingMs. */
+  private readonly recentBuildMs: number[] = [];
 
   constructor(private readonly deps: IndexerDeps) {}
 
@@ -89,6 +96,33 @@ export class Indexer {
     });
     this.inflight.set(repo, p);
     return p;
+  }
+
+  /**
+   * Estimated milliseconds remaining for an in-flight build, given the elapsed
+   * wall-time so far. Rolling average over the last `ESTIMATE_WINDOW_SIZE`
+   * successful builds; falls back to a cold-path default when no observations
+   * exist. Clamped to >= 0.
+   *
+   * The Retriever surfaces `Math.ceil(estimateRemainingMs(...) / 1000)` as
+   * `estimatedRemainingSeconds` on the `index_building` envelope so agents
+   * can choose between waiting vs calling `request_indexing` for a future
+   * cache hit.
+   */
+  estimateRemainingMs(elapsedMs: number): number {
+    // Defensive clamp: negative elapsedMs (clock skew, mocked timers in tests)
+    // would otherwise inflate the estimate beyond the avg.
+    const e = Number.isFinite(elapsedMs) && elapsedMs > 0 ? elapsedMs : 0;
+    const avg = this.recentBuildMs.length === 0
+      ? ESTIMATE_COLD_DEFAULT_MS
+      : this.recentBuildMs.reduce((a, b) => a + b, 0) / this.recentBuildMs.length;
+    return Math.max(0, Math.round(avg - e));
+  }
+
+  /** Test seam — pre-seed recent build durations. */
+  __test_seedRecentBuildMs(values: number[]): void {
+    this.recentBuildMs.length = 0;
+    for (const v of values.slice(-ESTIMATE_WINDOW_SIZE)) this.recentBuildMs.push(v);
   }
 
   private async runIndex(repo: string, optsIn: IndexerBuildOptions): Promise<IndexerResult> {
@@ -255,6 +289,13 @@ export class Indexer {
       chunkCount: indexed.length,
       ...(buildGraph ? { edgeCount: edges.length } : {}),
     });
+
+    // Feed the rolling window so estimateRemainingMs adapts to this
+    // deployment's actual cold-path latency.
+    this.recentBuildMs.push(buildDurMs);
+    if (this.recentBuildMs.length > ESTIMATE_WINDOW_SIZE) {
+      this.recentBuildMs.shift();
+    }
 
     log.info('indexer.built', {
       repo,

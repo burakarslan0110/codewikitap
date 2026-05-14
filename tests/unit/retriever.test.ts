@@ -185,6 +185,7 @@ describe('Retriever — index_building timeout race', () => {
         new Promise((resolve) =>
           setTimeout(() => resolve({ status: 'ready', chunkCount: 0 }), 200),
         ),
+      estimateRemainingMs: (elapsedMs: number): number => Math.max(0, 8000 - elapsedMs),
     } as unknown as Indexer;
     // Fresh store/cache so no chunks are pre-indexed.
     const freshDb = path.join(tmpDir, 'fresh.db');
@@ -195,6 +196,80 @@ describe('Retriever — index_building timeout race', () => {
     const result = await r.findChunks('hooks', 'facebook/react', 3, { timeoutMs: 50 });
     expect(result.status).toBe('index_building');
     expect(result.chunks).toEqual([]);
+    freshCache.close();
+  });
+
+  // estimatedRemainingSeconds envelope field (TS-004).
+  it('TS-004 — index_building envelope carries estimatedRemainingSeconds (>= 0, integer)', async () => {
+    const slowIndexer = {
+      indexRepo: (): Promise<IndexerResult> =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ status: 'ready', chunkCount: 0 }), 500),
+        ),
+      // Cold-path default: 8000ms remaining when elapsed is small.
+      estimateRemainingMs: (elapsedMs: number): number => Math.max(0, 8000 - elapsedMs),
+    } as unknown as Indexer;
+    const freshDb = path.join(tmpDir, 'fresh2.db');
+    const freshCache = await Cache.open({ dbPath: freshDb });
+    const freshStore = new VectorStore(freshCache);
+
+    const r = new Retriever({ embedder, reranker: passthroughReranker(), store: freshStore, indexer: slowIndexer });
+    const result = await r.findChunks('hooks', 'facebook/react', 3, { timeoutMs: 50 });
+    expect(result.status).toBe('index_building');
+    expect(typeof result.estimatedRemainingSeconds).toBe('number');
+    expect(Number.isInteger(result.estimatedRemainingSeconds)).toBe(true);
+    expect(result.estimatedRemainingSeconds!).toBeGreaterThanOrEqual(0);
+    // With 50ms timeout + ~8s cold default, the remainder must be ≤ 15s (new default cap).
+    expect(result.estimatedRemainingSeconds!).toBeLessThanOrEqual(15);
+    freshCache.close();
+  });
+});
+
+describe('Indexer.estimateRemainingMs', () => {
+  it('returns the cold-path default (8000) when no builds observed yet', async () => {
+    const freshDb = path.join(tmpDir, 'estim.db');
+    const freshCache = await Cache.open({ dbPath: freshDb });
+    const freshStore = new VectorStore(freshCache);
+    const indexer = new Indexer({ client, embedder, store: freshStore, graphStore: new GraphStore(freshCache), cache: freshCache });
+    expect(indexer.estimateRemainingMs(0)).toBe(8000);
+    expect(indexer.estimateRemainingMs(3000)).toBe(5000);
+    expect(indexer.estimateRemainingMs(10000)).toBe(0); // clamped to >= 0
+    freshCache.close();
+  });
+
+  it('rolling-avg over recent builds (test seam pre-seeds the window)', async () => {
+    const freshDb = path.join(tmpDir, 'estim2.db');
+    const freshCache = await Cache.open({ dbPath: freshDb });
+    const freshStore = new VectorStore(freshCache);
+    const indexer = new Indexer({ client, embedder, store: freshStore, graphStore: new GraphStore(freshCache), cache: freshCache });
+    indexer.__test_seedRecentBuildMs([10000, 12000, 14000]); // avg = 12000
+    expect(indexer.estimateRemainingMs(0)).toBe(12000);
+    expect(indexer.estimateRemainingMs(7000)).toBe(5000);
+    expect(indexer.estimateRemainingMs(20000)).toBe(0);
+    freshCache.close();
+  });
+
+  it('rolling window is capped at 10 — seeding 12 values keeps only the last 10', async () => {
+    const freshDb = path.join(tmpDir, 'estim3.db');
+    const freshCache = await Cache.open({ dbPath: freshDb });
+    const freshStore = new VectorStore(freshCache);
+    const indexer = new Indexer({ client, embedder, store: freshStore, graphStore: new GraphStore(freshCache), cache: freshCache });
+    // Seed 12 values [100, 200, 300, ..., 1200]. Cap-at-10 keeps last 10: [300..1200], avg = 750.
+    indexer.__test_seedRecentBuildMs([100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]);
+    expect(indexer.estimateRemainingMs(0)).toBe(750);
+    freshCache.close();
+  });
+
+  it('defensive clamp: negative or non-finite elapsedMs is treated as 0', async () => {
+    const freshDb = path.join(tmpDir, 'estim4.db');
+    const freshCache = await Cache.open({ dbPath: freshDb });
+    const freshStore = new VectorStore(freshCache);
+    const indexer = new Indexer({ client, embedder, store: freshStore, graphStore: new GraphStore(freshCache), cache: freshCache });
+    indexer.__test_seedRecentBuildMs([5000]);
+    // Negative elapsed (clock skew) clamps to 0 → remaining === avg.
+    expect(indexer.estimateRemainingMs(-1000)).toBe(5000);
+    expect(indexer.estimateRemainingMs(NaN)).toBe(5000);
+    expect(indexer.estimateRemainingMs(Infinity)).toBe(5000);
     freshCache.close();
   });
 });

@@ -19,6 +19,7 @@ import { getPlaywrightDriver } from './adapters/playwright_driver.js';
 import { installStdoutTripwire } from './adapters/stdout_guard.js';
 import { getLogger, type Logger } from './logging.js';
 import { assertNodeVersion } from './runtime_check.js';
+import { detectRuntimeCapabilities } from './runtime_capabilities.js';
 import {
   LOG_DIR,
   DISABLE_PREWARM,
@@ -328,6 +329,12 @@ async function main(): Promise<void> {
   // gone, so warmup is purely a perf optimization (avoids cold-load latency
   // on the first user `find_chunks`). Failures emit a warn-log only.
   void warmupModels({ embedder: built.embedder, reranker: built.reranker, log });
+
+  // One-shot capability summary after handshake. Synchronous — reads
+  // already-tracked state from cache + driver, emits a single
+  // `runtime_capabilities` stderr line so cross-platform degradations are
+  // visible BEFORE the first slow tool call.
+  detectRuntimeCapabilities({ cache: built.cache, driver, log });
 
   // v2.8: scanProject() is hoisted out of the watcher block so the prewarmer
   // works independently of CODEWIKI_DISABLE_WATCH (Codex review iter 1 #3).

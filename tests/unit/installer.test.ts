@@ -85,6 +85,70 @@ describe('installer/io.ts', () => {
       const read = await fs.readFile(target, 'utf8');
       expect([a, b]).toContain(read);
     });
+
+    // Typed error surfaces with actionable messages.
+    it('throws path_create_failed when parent mkdir fails (EACCES surrogate)', async () => {
+      const { InstallerError } = await import('../../src/installer/adapter.js');
+      const spy = vi.spyOn(fs, 'mkdir').mockRejectedValue(
+        Object.assign(new Error('access denied'), { code: 'EACCES' }),
+      );
+      try {
+        await expect(atomicWrite(path.join(tmpRoot, 'a/b/c.json'), 'x')).rejects.toMatchObject({
+          kind: 'path_create_failed',
+        });
+        // Also verify error type:
+        try {
+          await atomicWrite(path.join(tmpRoot, 'a/b/c.json'), 'x');
+        } catch (err) {
+          expect(err).toBeInstanceOf(InstallerError);
+          expect((err as Error).message).toContain('EACCES');
+          expect((err as Error).message).toContain('a/b'); // path embedded in message
+        }
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('retries rename ONCE on EBUSY before surfacing home_not_writable', async () => {
+      const target = path.join(tmpRoot, 'busy.json');
+      let calls = 0;
+      const orig = fs.rename.bind(fs);
+      const spy = vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+        calls++;
+        if (calls <= 2) {
+          throw Object.assign(new Error('busy'), { code: 'EBUSY' });
+        }
+        return orig(from, to);
+      });
+      try {
+        await expect(atomicWrite(target, 'x')).rejects.toMatchObject({
+          kind: 'home_not_writable',
+        });
+        expect(calls).toBe(2); // first attempt + 1 retry
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('rename retry: EBUSY then success → write completes', async () => {
+      const target = path.join(tmpRoot, 'transient-busy.json');
+      let calls = 0;
+      const orig = fs.rename.bind(fs);
+      const spy = vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+        calls++;
+        if (calls === 1) {
+          throw Object.assign(new Error('busy'), { code: 'EBUSY' });
+        }
+        return orig(from, to);
+      });
+      try {
+        await atomicWrite(target, 'recovered');
+        expect(await fs.readFile(target, 'utf8')).toBe('recovered');
+        expect(calls).toBe(2); // attempt + retry
+      } finally {
+        spy.mockRestore();
+      }
+    });
   });
 
   describe('backupIfExists', () => {

@@ -1,13 +1,11 @@
 /**
  * Server build + tool-surface audit.
  *
- * Locks the v2.6 differentiator: tool surface MUST be exactly the 7 documented
- * names. The Cloudmeru-parity regex still rejects any `*search*`, `*ask*`,
- * `*query*`, `*generate*`, `*index*`, or `*write*` tool that would drift
- * toward Cloudmeru; v2.6 introduces a single-name whitelist (`request_indexing`)
- * — the FORBIDDEN_TOKEN_WHITELIST is asserted equal to that exact set so
- * adding any second `*index*` (or other token-matching) name requires an
- * explicit edit and a deliberate review.
+ * Tool surface MUST be exactly the 6 documented names. The Cloudmeru-parity
+ * regex rejects any `*search*`, `*ask*`, `*query*`, `*generate*`, `*index*`,
+ * or `*write*` tool that would drift toward Cloudmeru; the single-name
+ * whitelist (`request_indexing`) is unchanged — adding any second
+ * `*index*` (or other token-matching) name requires explicit edit + review.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -52,18 +50,18 @@ afterEach(() => {
 const FORBIDDEN_TOKEN_WHITELIST = new Set(['request_indexing']);
 
 describe('buildServer — tool-surface audit', () => {
-  it('registers exactly the 7 documented tool names (v2.6: includes request_indexing)', async () => {
+  it('registers exactly the 6 documented tool names (list_pages exposed via get_page({ listPages: true }))', async () => {
     const built = await buildServer({ cwd: tmpDir, cache, client, embedder });
     const names = built.toolNames.slice().sort();
     expect(names).toEqual([
       'find_chunks',
       'find_neighbors',
       'get_page',
-      'list_pages',
       'list_project_dependencies',
       'request_indexing',
       'resolve_repo',
     ]);
+    expect(built.toolNames.length).toBe(6);
   });
 
   it('forbids tool names suggesting Cloudmeru-parity surface — every forbidden token still rejected (v2.6 whitelist)', async () => {
@@ -86,15 +84,20 @@ describe('buildServer — tool-surface audit', () => {
     expect(forbidden.test('find_neighbors')).toBe(false);
   });
 
-  it('exposes server instructions covering the documented imperatives (v2.6: includes request_indexing)', async () => {
+  it('exposes server instructions covering the documented imperatives (6-tool surface)', async () => {
     const built = await buildServer({ cwd: tmpDir, cache, client, embedder });
     expect(built.server).toBeDefined();
     expect(SERVER_INSTRUCTIONS).toContain('list_project_dependencies');
     expect(SERVER_INSTRUCTIONS).toContain('find_chunks');
     expect(SERVER_INSTRUCTIONS).toContain('find_neighbors');
-    expect(SERVER_INSTRUCTIONS).toContain('list_pages then get_page');
+    expect(SERVER_INSTRUCTIONS).toContain('get_page');
+    expect(SERVER_INSTRUCTIONS).toContain('listPages');
     expect(SERVER_INSTRUCTIONS).toContain('request_indexing');
     expect(SERVER_INSTRUCTIONS).toContain('citation');
+    // Negative assertion: list_pages must NOT appear anywhere.
+    expect(SERVER_INSTRUCTIONS).not.toContain('list_pages');
+    // Tool-surface threshold (≤ 10% context). Conservative 1024-char ceiling.
+    expect(SERVER_INSTRUCTIONS.length).toBeLessThanOrEqual(1024);
   });
 
   it('request_indexing is the only non-readonly tool (toolNames includes it; ReadOnlyHint=false)', async () => {

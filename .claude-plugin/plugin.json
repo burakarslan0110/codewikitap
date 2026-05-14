@@ -1,7 +1,7 @@
 {
   "$schema": "https://code.claude.com/schemas/plugin.json",
   "name": "codewikitap",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents. Scans your project's manifests, detects which dependencies have CodeWiki coverage, and exposes 7 tools with hybrid sparse+dense retrieval, knowledge graph traversal, and always-on citation enforcement.",
   "author": {
     "name": "Burak Arslan",

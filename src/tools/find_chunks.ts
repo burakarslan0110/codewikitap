@@ -88,6 +88,11 @@ const outputSchema = z.object({
     .optional(),
   status: z.enum(['no_docs', 'rate_limited', 'retry', 'index_building']).optional(),
   retryAfterSeconds: z.number().optional(),
+  /**
+   * Only set when `status === 'index_building'`. Coarse rolling-avg estimate;
+   * agent can choose to wait + retry vs `request_indexing` for a future cache hit.
+   */
+  estimatedRemainingSeconds: z.number().int().nonnegative().optional(),
   reason: z.string().optional(),
 });
 
@@ -101,7 +106,7 @@ export function registerFindChunks(server: McpServer, deps: FindChunksToolDeps):
     {
       title: 'Semantic retrieval over CodeWiki documentation',
       description:
-        'Semantic retrieval over indexed CodeWiki pages. Returns ranked chunks with anchored citations. Pass `repo` to scope; omit to query already-indexed repos. Always surface citation.sourceUrl to the user.',
+        'Hybrid semantic+BM25 retrieval over CodeWiki pages. Returns ranked chunks with anchored citations. Pass `repo` to scope; omit to query already-indexed repos (off-project — use after resolve_repo + request_indexing to ask about any GitHub repo). Always surface citation.sourceUrl.',
       inputSchema: inputSchema.shape,
       outputSchema: outputSchema.shape,
       annotations: { readOnlyHint: true, idempotentHint: true },
@@ -122,6 +127,7 @@ export function registerFindChunks(server: McpServer, deps: FindChunksToolDeps):
         ...(result.hybridStats ? { hybridStats: result.hybridStats } : {}),
         ...(result.status ? { status: result.status } : {}),
         ...(result.retryAfterSeconds !== undefined ? { retryAfterSeconds: result.retryAfterSeconds } : {}),
+        ...(result.estimatedRemainingSeconds !== undefined ? { estimatedRemainingSeconds: result.estimatedRemainingSeconds } : {}),
         ...(result.reason ? { reason: result.reason } : {}),
       };
       return {

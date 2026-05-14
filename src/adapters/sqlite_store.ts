@@ -75,14 +75,15 @@ export async function openStore(opts: OpenStoreOptions): Promise<SqliteStore> {
   const handle = new Ctor(opts.dbPath) as any;
   handle.pragma('journal_mode = WAL');
 
-  // v2.6: try to load the sqlite-vec extension. Failure is non-fatal — the
-  // pure-JS cosine path in vector_store.ts engages when vecAvailable is false.
-  // Install-time failure of sqlite-vec blocks `pnpm install` (it's now a hard
-  // dep); runtime load failure here covers the SIP-denied / sandboxed case.
+  // Try to load the sqlite-vec extension. Failure is non-fatal — the pure-JS
+  // cosine path in vector_store.ts engages when vecAvailable is false.
+  // sqlite-vec is in `optionalDependencies` so install-time failure does not
+  // block `pnpm install`. Runtime load failure here covers BOTH the post-install
+  // SIP-denied / sandboxed case AND the missing-prebuilt-on-this-platform case
+  // (e.g. Windows ARM, Alpine musl when no matching prebuilt).
   let vecAvailable = false;
   try {
-    // Dynamic import so a missing module is non-fatal at runtime (would only
-    // happen if a user removed sqlite-vec from node_modules manually).
+    // Dynamic import so an optional/missing module is non-fatal.
     const sqliteVec = (await import('sqlite-vec')) as { load: (db: unknown) => void };
     sqliteVec.load(handle);
     vecAvailable = true;
@@ -98,8 +99,10 @@ export async function openStore(opts: OpenStoreOptions): Promise<SqliteStore> {
       JSON.stringify({
         time: new Date().toISOString(),
         level: 'warn',
-        msg: 'sqlite_vec.load_failed',
+        msg: 'sqlite_vec.unavailable',
         reason: err instanceof Error ? err.message : String(err),
+        fallback: 'purejs_cosine',
+        hint: 'falling back to pure-JS cosine; vector queries on large repos may be ~5-10x slower. Install a platform-prebuilt or rebuild sqlite-vec to restore native cosine.',
       }) + '\n',
     );
   }

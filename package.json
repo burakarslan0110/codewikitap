@@ -1,7 +1,7 @@
 {
   "name": "codewikitap",
-  "version": "0.5.1",
-  "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity). Scans your project's manifests, detects which dependencies have CodeWiki coverage, and exposes 7 structured tools with hybrid sparse+dense retrieval, knowledge graph traversal, and always-on citation enforcement.",
+  "version": "0.5.2",
+  "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity). Scans your project's manifests, detects which dependencies have CodeWiki coverage, and exposes 6 structured tools with hybrid sparse+dense retrieval, knowledge graph traversal, off-project query, and always-on citation enforcement.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -18,7 +18,7 @@
     "scripts/postinstall.mjs"
   ],
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.5.0"
   },
   "packageManager": "pnpm@10.33.4",
   "scripts": {
@@ -79,14 +79,14 @@
     "jsdom": "^25.0.0",
     "playwright": "^1.51.0",
     "semver": "^7.8.0",
-    "sqlite-vec": "^0.1.6",
     "tinyglobby": "^0.2.16",
     "turndown": "^7.2.0",
     "yaml": "^2.8.4",
     "zod": "^3.23.0"
   },
   "optionalDependencies": {
-    "better-sqlite3": "^11.5.0"
+    "better-sqlite3": "^11.5.0",
+    "sqlite-vec": "^0.1.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",

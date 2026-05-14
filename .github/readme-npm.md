@@ -45,7 +45,7 @@ No API keys, no cloud, no telemetry — it runs locally as an MCP server over st
 
 When you ask your coding agent *"why isn't my `revalidatePath` clearing the cache?"*, it typically guesses from training data. CodeWiKiTap gives it the actual Next.js documentation — chunked, semantically retrieved, pinned to the exact commit your `next` dependency is on, with a citation footer it cannot strip.
 
-It scans your project's manifest at startup, resolves direct dependencies to GitHub repos, and exposes **seven MCP tools** the agent can call: `list_project_dependencies`, `resolve_repo`, `list_pages`, `get_page`, `find_chunks` (hybrid BM25 + vector + RRF + cross-encoder rerank), `find_neighbors` (knowledge-graph traversal over the docs), and `request_indexing` (pre-warm).
+It scans your project's manifest at startup, resolves direct dependencies to GitHub repos, and exposes **six MCP tools** the agent can call: `list_project_dependencies`, `resolve_repo`, `get_page` (set `listPages: true` for the page index), `find_chunks` (hybrid BM25 + vector + RRF + cross-encoder rerank; omit `repo` for off-project query), `find_neighbors` (knowledge-graph traversal over the docs), and `request_indexing` (pre-warm).
 
 **The data source is [Google CodeWiki](https://codewiki.google)** — Gemini-generated documentation regenerated on every PR merge for every public GitHub repo. This package is **unofficial** and not affiliated with Google in any way.
 

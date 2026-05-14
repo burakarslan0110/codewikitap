@@ -1,7 +1,7 @@
 /**
  * Runtime Node-version guard.
  *
- * Why this exists: `package.json:engines.node` is `>=20.0.0`, but npm emits
+ * Why this exists: `package.json:engines.node` is `>=22.5.0`, but npm emits
  * only a warn-level `EBADENGINE` notice when a user installs on a lower
  * version — the install still completes. The runtime guard catches that
  * gap by hard-exiting with a clear recovery message before any other work
@@ -13,7 +13,8 @@
  * trip unit tests that import named exports on legacy CI runners).
  */
 
-export const MIN_NODE_MAJOR = 20;
+export const MIN_NODE_MAJOR = 22;
+export const MIN_NODE_MINOR = 5;
 
 export interface NodeVersionDeps {
   readonly versions: NodeJS.ProcessVersions;
@@ -22,18 +23,32 @@ export interface NodeVersionDeps {
 }
 
 function buildRecoveryMessage(current: string): string {
+  const floor = `${MIN_NODE_MAJOR}.${MIN_NODE_MINOR}`;
   return (
-    `codewikitap requires Node.js >= ${MIN_NODE_MAJOR} (current: ${current}).\n` +
+    `codewikitap requires Node.js >= ${floor} (current: ${current}).\n` +
     `Install a supported Node version from https://nodejs.org/ or via your\n` +
-    `version manager (e.g. nvm install ${MIN_NODE_MAJOR}, fnm install ${MIN_NODE_MAJOR}).\n`
+    `version manager (e.g. nvm install ${MIN_NODE_MAJOR}, ` +
+    `fnm install ${MIN_NODE_MAJOR}, ` +
+    `volta install node@${MIN_NODE_MAJOR}).\n`
   );
 }
 
 export function assertNodeVersion(deps: NodeVersionDeps): void {
-  const match = /^(\d+)/.exec(deps.versions.node);
-  const major = match ? Number.parseInt(match[1]!, 10) : Number.NaN;
-  if (Number.isFinite(major) && major >= MIN_NODE_MAJOR) {
-    return;
+  // Regex captures both major and minor; pre-release suffixes like
+  // `22.5.0-rc.1` are tolerated because the digits we care about come first.
+  // process.versions.node normally returns dotted-numeric (e.g. "22.5.1"),
+  // but defensive parsing keeps the guard honest for embedded/forked builds.
+  const match = /^(\d+)\.(\d+)/.exec(deps.versions.node);
+  if (match) {
+    const major = Number.parseInt(match[1]!, 10);
+    const minor = Number.parseInt(match[2]!, 10);
+    if (
+      Number.isFinite(major) &&
+      Number.isFinite(minor) &&
+      (major > MIN_NODE_MAJOR || (major === MIN_NODE_MAJOR && minor >= MIN_NODE_MINOR))
+    ) {
+      return;
+    }
   }
   deps.stderrWrite(buildRecoveryMessage(deps.versions.node));
   deps.exit(1);

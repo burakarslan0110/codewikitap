@@ -129,8 +129,8 @@ describe('TS-001 — cold-start scan in a Node project', () => {
 });
 
 describe('TS-002 — heading-aware sub-section retrieval', () => {
-  it('list_pages returns the page index, get_page subsection returns ONLY that subtree', async () => {
-    const list = await mcpClient.callTool({ name: 'list_pages', arguments: { repo: 'facebook/react' } });
+  it('get_page({listPages:true}) returns the page index, get_page subsection returns ONLY that subtree', async () => {
+    const list = await mcpClient.callTool({ name: 'get_page', arguments: { repo: 'facebook/react', listPages: true } });
     const ls = structuredOf(list);
     const idx = ls.pageIndex as Array<{ slug: string; parentSlug: string | null }>;
     expect(idx.find((e) => e.slug === 'core')).toBeDefined();
@@ -186,8 +186,8 @@ describe('TS-003 — vague-name resolution', () => {
 });
 
 describe('TS-004 — no_wiki graceful degradation', () => {
-  it('list_pages on uncovered repo returns {repo, status:"no_wiki", pageIndex:[]}, not isError', async () => {
-    const r = await mcpClient.callTool({ name: 'list_pages', arguments: { repo: 'org/uncovered' } });
+  it('get_page({listPages:true}) on uncovered repo returns {repo, status:"no_wiki", pageIndex:[]}, not isError', async () => {
+    const r = await mcpClient.callTool({ name: 'get_page', arguments: { repo: 'org/uncovered', listPages: true } });
     const s = structuredOf(r);
     expect(s.status).toBe('no_wiki');
     expect(s.repo).toBe('org/uncovered');

@@ -27,7 +27,7 @@ describe('withMetrics', () => {
   }
 
   it('emits tool_latency_ms with status=ok on a successful handler', async () => {
-    const wrapped = withMetrics('list_pages', async (_args: unknown) => ({
+    const wrapped = withMetrics('get_page', async (_args: unknown) => ({
       content: [{ type: 'text', text: '{}' }],
       structuredContent: { whatever: 1 },
     }));
@@ -35,7 +35,7 @@ describe('withMetrics', () => {
 
     const metric = findMetric('tool_latency_ms');
     expect(metric).not.toBeNull();
-    expect(metric?.tool).toBe('list_pages');
+    expect(metric?.tool).toBe('get_page');
     expect(metric?.status).toBe('ok');
     expect(typeof metric?.value).toBe('number');
     expect(metric?.level).toBe('metric');

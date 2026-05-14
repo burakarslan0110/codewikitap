@@ -29,7 +29,7 @@ export const AUDIT_SCENARIOS = {
   AUDIT_TS_001: 'Version drift detection across four sources',
   AUDIT_TS_002: 'list_project_dependencies happy + degraded paths',
   AUDIT_TS_003: 'resolve_repo happy + degraded paths',
-  AUDIT_TS_004: 'list_pages happy + degraded paths',
+  AUDIT_TS_004: 'get_page listPages happy + degraded paths',
   AUDIT_TS_005: 'get_page happy + degraded paths',
   AUDIT_TS_006: 'find_chunks happy + degraded paths',
   AUDIT_TS_007: 'find_neighbors happy + degraded paths',

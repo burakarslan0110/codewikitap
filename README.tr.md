@@ -67,7 +67,7 @@ Dikkat edilecek iki şey var:
 <a id="codewikitap-nedir"></a>
 ## CodeWikiTap nedir?
 
-CodeWikiTap, makinende lokal çalışan küçük bir Node/TypeScript programı — bir **Model Context Protocol (MCP) server**. Kodlama agent'ın (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, …) ona stdio üzerinden konuşur. Kilitli bir **yedi tool**'luk yüzey sunar — altı read-only, bir pre-warm — ve agent ihtiyacı olduğu anda CodeWiki içeriğini context'ine çekebilir.
+CodeWikiTap, makinende lokal çalışan küçük bir Node/TypeScript programı — bir **Model Context Protocol (MCP) server**. Kodlama agent'ın (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, …) ona stdio üzerinden konuşur. Kilitli bir **altı tool**'luk yüzey sunar — beş read-only, bir pre-warm — ve agent ihtiyacı olduğu anda CodeWiki içeriğini context'ine çekebilir.
 
 En kısa zihinsel model:
 
@@ -278,29 +278,13 @@ Agent slug'ı zaten biliyorsa atlanır. Kullanıcı "react'in dokümanına bak" 
    "rails"  ─►  RubyGems      ─►  source_code_uri ─►  rails/rails
 ```
 
-### 3. `list_pages` — içindekiler
+### 3. `get_page` — bir sayfa, sub-section ya da içindekiler tablosu
 
 ```
-   Input:  { owner, repo }
-   Output: [
-     { slug: "getting-started",     title: "Getting Started",   depth: 0 },
-     { slug: "app-router",          title: "App Router",        depth: 0,
-       subsections: [
-         "data-fetching",
-         "caching/route-cache",
-         "caching/data-cache",
-         "caching/on-demand-revalidation",
-         ...
-       ]
-     },
-     ...
-   ]
-```
-
-### 4. `get_page` — bir sayfayı (veya sub-section'ı) Markdown olarak getir
-
-```
-   Input:  { owner, repo, slug, subsection? }
+   Input:  { owner, repo, slug?, subsection?, listPages? }
+        │
+        ├─ listPages: true ─► içindekiler dönüyor:
+        │                       [{ slug, title, level, parentSlug, hasDiagrams }, ...]
         │
         ▼
    cache.db hit?
@@ -314,11 +298,20 @@ Agent slug'ı zaten biliyorsa atlanır. Kullanıcı "react'in dokümanına bak" 
    Markdown + diagram'lar + kod + citation footer (byte-equal, assert'li)
 ```
 
-### 5. `find_chunks` — esas iş yükü (hybrid RAG)
+### 4. `find_chunks` — esas iş yükü (hybrid RAG, proje-içi veya off-project)
 
 Yukarıdaki diyagrama bak. Bilmen gereken şey: her chunk ile beraber **beş puan** dönüyor — `vectorScore`, `bm25Score`, `rrfScore`, `rerankScore` + iki pre-fusion rank. Agent (veya sen) "bu chunk neden döndü?" diye merak ettiğinde cevap tamamen incelenebilir.
 
-### 6. `find_neighbors` — knowledge graph traversal
+**Off-project sorgu.** `repo` parametresini boş bırakırsan zaten indexlenmiş bütün repolarda arar. Henüz bağımlılığın olmayan bir repo'yu CodeWiki'ye sormak istersen 3 tool'u compose et:
+
+```
+   resolve_repo({ query: "react" })                              → { owner: "facebook", repo: "react" }
+   request_indexing({ repo: "facebook/react" })                  → { status: "ready" | "index_building" }
+   find_chunks({ query: "rules of hooks", repo: "facebook/react" })
+                                                                 → citation'lı ranked chunks
+```
+
+### 5. `find_neighbors` — knowledge graph traversal
 
 Beş kayıtlı edge tipi + query-zamanı türetilen `dep_link`:
 
@@ -334,7 +327,7 @@ Beş kayıtlı edge tipi + query-zamanı türetilen `dep_link`:
 
 İsteğe bağlı `query` parametresi verildiğinde komşular semantik benzerliğe göre yeniden sıralanır — mevcut embedder kullanılır, ayrı model yok.
 
-### 7. `request_indexing` — pre-warm (tek non-readonly tool)
+### 6. `request_indexing` — pre-warm (tek non-readonly tool)
 
 Nazikçe "lütfen bu repo'nun indeksini şimdi kur ki sonraki çağrım cold-start ödemesin" demek. Agent kullanıcı sormadan bir kütüphaneyi keşfetmeye karar verdiğinde işe yarar.
 
@@ -395,12 +388,12 @@ Nazikçe "lütfen bu repo'nun indeksini şimdi kur ki sonraki çağrım cold-sta
 
 ```
    Agent'ın tool akışı:
-     resolve_repo("@tanstack/react-query")       → TanStack/query
-     request_indexing({ owner, repo })           → pre-warm
-     list_pages({ owner, repo })                 → 14 sayfa
-     find_chunks({ query: "core concepts",       → 5 chunk
-                   repos: ["TanStack/query"], k: 5 })
-     get_page({ slug: "guides/important-defaults" })
+     resolve_repo("@tanstack/react-query")             → TanStack/query
+     request_indexing({ owner, repo })                 → pre-warm
+     get_page({ owner, repo, listPages: true })        → 14 sayfa
+     find_chunks({ query: "core concepts",             → 5 chunk
+                   repo: "TanStack/query", k: 5 })
+     get_page({ owner, repo, slug: "guides/important-defaults" })
 
    Kullanıcının gördüğü:
      Citation ile yüklü, grounded bir tur — "query", "mutation",
@@ -591,6 +584,27 @@ Chat'te "react" demen yeterli — resolver onu `facebook/react`'a map'ler. Maven
 | `CODEWIKI_RERANK_TOP_N` | `50` | Reranker'a verilen aday sayısı. |
 
 Tam liste: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Native bağımlılıklar (sqlite-vec, better-sqlite3)
+
+`sqlite-vec` ve `better-sqlite3` **opsiyonel native bağımlılık** olarak tanımlı. Platform için yayınlanmış prebuilt yoksa kurulum başarısız olmaz:
+
+| Native dep | Yokken | Etki |
+|---|---|---|
+| `better-sqlite3` | macOS/Windows prebuilt yoksa + toolchain yok | In-memory cache fallback; `cache.db` diskte yok (sorgular çalışır, restart cache'i kaybeder) |
+| `sqlite-vec` | macOS SIP, sandbox, Windows ARM, Alpine musl | `vector_store.ts` pure-JS cosine fallback; büyük repolarda ~5–10× yavaş vektör sorgusu. Sonuçların matematik anlamı değişmez. |
+
+Boot sırasında tek satır structured stderr log:
+
+```json
+{"level":"info","msg":"runtime_capabilities","betterSqlite3":true,"sqliteVec":false,"playwright":"ready","nodeVersion":"22.5.0",...}
+```
+
+`sqliteVec: false` görüyor ve sorgular yavaş geliyorsa, uyumlu `sqlite-vec` prebuilt'i yükle veya kaynağından derle:
+
+```
+npm rebuild sqlite-vec
+```
 
 ---
 

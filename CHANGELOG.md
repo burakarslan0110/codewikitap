@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-05-14
+
+### BREAKING
+
+- **`list_pages` MCP tool removed.** Merged into `get_page` — agents migrating from 0.5.1 must call `get_page({ repo, listPages: true })` to fetch the page index. The output shape under that flag is identical to the legacy `list_pages` output.
+- **Node.js floor raised: 20 → 22.5.** The runtime guard hard-exits on `< 22.5` with an `nvm/fnm/volta install 22` recovery message; `engines.node` is `>=22.5.0`.
+
+### Changed
+
+- **Tool surface narrowed 7 → 6.** Locked-name whitelist (`request_indexing`) and Cloudmeru-parity regex unchanged.
+- **`sqlite-vec` moved `dependencies` → `optionalDependencies`.** Install no longer fails on platforms without a published prebuilt; pure-JS cosine fallback engages with a clear `sqlite_vec.unavailable` warn carrying actionable hint text.
+- **`INDEX_BUILD_TIMEOUT_MS` default 5000 → 15000 ms.** `find_chunks` cold-path return now favours a populated response over `index_building`. The status envelope gains `estimatedRemainingSeconds` to help agents decide when to retry vs `request_indexing`.
+- **Boot-time `runtime_capabilities` stderr line** announces `betterSqlite3`, `sqliteVec`, `playwright`, `nodeVersion`, `platform`, `arch` so cross-platform degradations surface before the first slow tool call.
+- **NPX installer hardening:** atomic-write retries on Windows `EBUSY`/`ETXTBSY`, clearer `path_create_failed` error, postinstall Windows toolchain hint.
+
+### Added
+
+- `PlaywrightDriver.readyState: 'pending' | 'ready' | 'failed'` getter.
+- Off-project query example in all 3 READMEs: `resolve_repo → request_indexing → find_chunks` composition.
+
 ## [0.5.1] - 2026-05-13
 
 ### Fixed

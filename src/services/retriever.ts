@@ -32,7 +32,7 @@ import { reciprocalRankFusion, escapeBM25Query, FusedResult } from './fusion.js'
 export interface RetrieverDeps {
   embedder: Embedder;
   store: VectorStore;
-  indexer: Pick<Indexer, 'indexRepo'>;
+  indexer: Pick<Indexer, 'indexRepo' | 'estimateRemainingMs'>;
   /**
    * v2.6: cross-encoder reranker. Always invoked on findChunks (top-N vector
    * candidates → reranker → top-K slice). On RerankerError, degraded path
@@ -115,6 +115,13 @@ export interface FindChunksResult {
   };
   status?: 'no_docs' | 'rate_limited' | 'retry' | 'index_building';
   retryAfterSeconds?: number;
+  /**
+   * Only set when `status === 'index_building'`. A coarse estimate (from
+   * `Indexer.estimateRemainingMs` rolling window) the agent can use to choose
+   * between retrying `find_chunks` vs calling `request_indexing` for a future
+   * warm-cache hit. Clamped to >= 0.
+   */
+  estimatedRemainingSeconds?: number;
   fallbacks?: Fallback[];
   reason?: string;
 }
@@ -519,6 +526,7 @@ export class Retriever {
   ): Promise<{ repos: string[] } | FindChunksResult> {
     if (repo) {
       let buildPromise: Promise<IndexerResult>;
+      const raceStartedAt = Date.now();
       try {
         buildPromise = this.deps.indexer.indexRepo(repo);
       } catch (err) {
@@ -543,7 +551,19 @@ export class Retriever {
         ),
       ]);
       if (raced.kind === 'timeout') {
-        return { chunks: [], truncated: false, total: 0, status: 'index_building' };
+        // Include estimatedRemainingSeconds so agents can decide between
+        // waiting + retrying find_chunks vs calling request_indexing for a
+        // future warm-cache hit. Reads the rolling-window estimate from the
+        // indexer (cold-path default kicks in for fresh installs).
+        const elapsed = Date.now() - raceStartedAt;
+        const remainingMs = this.deps.indexer.estimateRemainingMs(elapsed);
+        return {
+          chunks: [],
+          truncated: false,
+          total: 0,
+          status: 'index_building',
+          estimatedRemainingSeconds: Math.ceil(remainingMs / 1000),
+        };
       }
       if (raced.kind === 'error') {
         if (raced.err instanceof EmbedderError) {

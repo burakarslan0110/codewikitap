@@ -5,15 +5,58 @@ import * as os from 'node:os';
 
 import { InstallerError, type AdapterReadResult, type McpEntry } from './adapter.js';
 
+/**
+ * Windows rename can fail with EBUSY/ETXTBSY when the target is currently
+ * open in another process (the MCP client itself, an editor, a virus scanner).
+ * Retry ONCE after a short delay before surfacing a human-readable failure.
+ * macOS/Linux are largely immune; the retry is a no-op there when rename
+ * succeeds first time.
+ */
+const RENAME_RETRY_DELAY_MS = 100;
+const RENAME_RETRYABLE_ERRORS = new Set(['EBUSY', 'ETXTBSY', 'EPERM']);
+
 export async function atomicWrite(target: string, content: string): Promise<void> {
-  await fs.mkdir(path.dirname(target), { recursive: true });
+  // Surface a typed `path_create_failed` instead of the raw ENOENT/EACCES so
+  // the wizard's catch block can produce an actionable message that names the
+  // unwritable directory.
+  try {
+    await fs.mkdir(path.dirname(target), { recursive: true });
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code ?? 'unknown';
+    throw new InstallerError(
+      'path_create_failed',
+      `failed to create parent directory '${path.dirname(target)}': ${code}. ` +
+        `Check permissions, available disk space, and that no antivirus has the path locked.`,
+    );
+  }
+
   const tmp = `${target}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
   await fs.writeFile(tmp, content);
-  try {
+
+  const attempt = async (): Promise<void> => {
     await fs.rename(tmp, target);
+  };
+  try {
+    await attempt();
   } catch (err) {
-    await fs.rm(tmp, { force: true }).catch(() => undefined);
-    throw err;
+    const code = (err as NodeJS.ErrnoException).code ?? 'unknown';
+    if (!RENAME_RETRYABLE_ERRORS.has(code)) {
+      await fs.rm(tmp, { force: true }).catch(() => undefined);
+      throw err;
+    }
+    await new Promise((resolve) => setTimeout(resolve, RENAME_RETRY_DELAY_MS));
+    try {
+      await attempt();
+    } catch (err2) {
+      await fs.rm(tmp, { force: true }).catch(() => undefined);
+      const code2 = (err2 as NodeJS.ErrnoException).code ?? 'unknown';
+      throw new InstallerError(
+        'home_not_writable',
+        `failed to atomically write '${target}' (after 1 retry, last error: ${code2}). ` +
+          `The target may be open in another process (MCP client, editor, antivirus). ` +
+          `Close any process holding the file and retry, or use --dry-run to inspect the planned write.`,
+      );
+    }
   }
 }
 

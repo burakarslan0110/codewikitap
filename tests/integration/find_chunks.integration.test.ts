@@ -183,7 +183,6 @@ describe('find_chunks integration — tool surface lock', () => {
       'find_chunks',
       'find_neighbors',
       'get_page',
-      'list_pages',
       'list_project_dependencies',
       'request_indexing',
       'resolve_repo',

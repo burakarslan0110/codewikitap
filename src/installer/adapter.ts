@@ -39,7 +39,9 @@ export type InstallerErrorKind =
   | 'missing_required_flag'
   | 'parse_error'
   | 'invalid_argument'
-  | 'merge_path_conflict';
+  | 'merge_path_conflict'
+  /** Parent-directory creation failed (mkdir EACCES/ENOSPC/etc). */
+  | 'path_create_failed';
 
 export class InstallerError extends Error {
   readonly kind: InstallerErrorKind;

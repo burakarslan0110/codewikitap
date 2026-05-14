@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { assertNodeVersion, MIN_NODE_MAJOR } from '../../src/runtime_check.js';
+import { assertNodeVersion, MIN_NODE_MAJOR, MIN_NODE_MINOR } from '../../src/runtime_check.js';
 
 interface Captured {
   readonly chunks: string[];
@@ -35,14 +35,15 @@ function makeVersions(node: string): NodeJS.ProcessVersions {
 }
 
 describe('runtime_check.assertNodeVersion', () => {
-  it('exports MIN_NODE_MAJOR = 20', () => {
-    expect(MIN_NODE_MAJOR).toBe(20);
+  it('exports MIN_NODE_MAJOR = 22 and MIN_NODE_MINOR = 5', () => {
+    expect(MIN_NODE_MAJOR).toBe(22);
+    expect(MIN_NODE_MINOR).toBe(5);
   });
 
-  it('silently passes on Node 20.18.1 (>= MIN_NODE_MAJOR)', () => {
+  it('silently passes on Node 22.5.0 (exactly at floor)', () => {
     const cap = makeCaptured();
     expect(() => assertNodeVersion({
-      versions: makeVersions('20.18.1'),
+      versions: makeVersions('22.5.0'),
       stderrWrite: cap.stderrWrite,
       exit: cap.exit,
     })).not.toThrow();
@@ -50,20 +51,67 @@ describe('runtime_check.assertNodeVersion', () => {
     expect(cap.exitCode).toBeNull();
   });
 
-  it('silently passes on Node 22.5.0 + 24.15.0 (well above min)', () => {
-    for (const v of ['22.5.0', '24.15.0']) {
+  it('silently passes on Node 22.5.1 and 24.0.0', () => {
+    for (const v of ['22.5.1', '24.0.0']) {
       const cap = makeCaptured();
       expect(() => assertNodeVersion({
         versions: makeVersions(v),
         stderrWrite: cap.stderrWrite,
         exit: cap.exit,
       })).not.toThrow();
-      expect(cap.chunks).toEqual([]);
       expect(cap.exitCode).toBeNull();
     }
   });
 
-  it('writes recovery message and exits 1 on Node 18.19.0 (< MIN_NODE_MAJOR)', () => {
+  it('TS-002 step 4 — silently passes on 22.10.0 (lexical-vs-numeric trap)', () => {
+    const cap = makeCaptured();
+    expect(() => assertNodeVersion({
+      versions: makeVersions('22.10.0'),
+      stderrWrite: cap.stderrWrite,
+      exit: cap.exit,
+    })).not.toThrow();
+    expect(cap.exitCode).toBeNull();
+  });
+
+  it('TS-002 step 6 — silently passes on 22.5.0-rc.1 (pre-release suffix tolerated)', () => {
+    const cap = makeCaptured();
+    expect(() => assertNodeVersion({
+      versions: makeVersions('22.5.0-rc.1'),
+      stderrWrite: cap.stderrWrite,
+      exit: cap.exit,
+    })).not.toThrow();
+    expect(cap.exitCode).toBeNull();
+  });
+
+  it('writes recovery message and exits 1 on Node 22.4.0 (minor below floor)', () => {
+    const cap = makeCaptured();
+    expect(() => assertNodeVersion({
+      versions: makeVersions('22.4.0'),
+      stderrWrite: cap.stderrWrite,
+      exit: cap.exit,
+    })).toThrow(ExitSentinel);
+    expect(cap.exitCode).toBe(1);
+    const message = cap.chunks.join('');
+    expect(message).toContain('codewikitap requires Node.js >= 22.5');
+    expect(message).toContain('22.4.0');
+    expect(message).toContain('nvm install 22');
+    expect(message).toContain('fnm install 22');
+    expect(message).toContain('volta install node@22');
+    expect(message).toContain('https://nodejs.org/');
+  });
+
+  it('writes recovery message and exits 1 on Node 20.18.1 (major below floor)', () => {
+    const cap = makeCaptured();
+    expect(() => assertNodeVersion({
+      versions: makeVersions('20.18.1'),
+      stderrWrite: cap.stderrWrite,
+      exit: cap.exit,
+    })).toThrow(ExitSentinel);
+    expect(cap.exitCode).toBe(1);
+    expect(cap.chunks.join('')).toContain('codewikitap requires Node.js >= 22.5');
+  });
+
+  it('writes recovery message and exits 1 on Node 18.19.0 (well below floor)', () => {
     const cap = makeCaptured();
     expect(() => assertNodeVersion({
       versions: makeVersions('18.19.0'),
@@ -71,13 +119,20 @@ describe('runtime_check.assertNodeVersion', () => {
       exit: cap.exit,
     })).toThrow(ExitSentinel);
     expect(cap.exitCode).toBe(1);
-    const message = cap.chunks.join('');
-    expect(message).toContain('codewikitap requires Node.js >= 20');
-    expect(message).toContain('18.19.0');
-    expect(message).toContain('https://nodejs.org/');
   });
 
-  it('writes recovery message and exits 1 on malformed versions.node', () => {
+  it('TS-002 step 5 — exits 1 on empty versions.node', () => {
+    const cap = makeCaptured();
+    expect(() => assertNodeVersion({
+      versions: makeVersions(''),
+      stderrWrite: cap.stderrWrite,
+      exit: cap.exit,
+    })).toThrow(ExitSentinel);
+    expect(cap.exitCode).toBe(1);
+    expect(cap.chunks.join('')).toContain('codewikitap requires Node.js >= 22.5');
+  });
+
+  it('exits 1 on malformed versions.node', () => {
     const cap = makeCaptured();
     expect(() => assertNodeVersion({
       versions: makeVersions('not-a-version'),
@@ -85,6 +140,5 @@ describe('runtime_check.assertNodeVersion', () => {
       exit: cap.exit,
     })).toThrow(ExitSentinel);
     expect(cap.exitCode).toBe(1);
-    expect(cap.chunks.join('')).toContain('codewikitap requires Node.js >= 20');
   });
 });

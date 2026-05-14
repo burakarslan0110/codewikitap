@@ -2,7 +2,7 @@
  * Tool: resolve_repo
  *
  * Vague name → canonical github.com/owner/repo. Skip when caller already has
- * a slug. Used before list_pages.
+ * a slug. Used before get_page or request_indexing.
  */
 
 import { z } from 'zod';
@@ -37,7 +37,7 @@ export function registerResolveRepo(server: McpServer, deps: ToolDeps): void {
     {
       title: 'Resolve a library name to github.com/owner/repo',
       description:
-        'Resolve a vague library name to a canonical github.com/owner/repo. Skip when the user already provided owner/repo. Use before list_pages.',
+        'Resolve a vague library name to a canonical github.com/owner/repo. Skip when caller already has owner/repo. Use before get_page or request_indexing.',
       inputSchema: inputSchema.shape,
       outputSchema: outputSchema.shape,
       annotations: { readOnlyHint: true, idempotentHint: true },

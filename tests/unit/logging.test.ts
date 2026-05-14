@@ -109,7 +109,7 @@ describe('Logger', () => {
   // v2.5: metric() emits level=metric on stderr; filtered by LOG_LEVEL=warn.
   it('metric() emits a JSON line at level=metric with name + value + tags', () => {
     const log = new Logger({ logFilePath: logFile, level: 'info', flushIntervalMs: 0 });
-    log.metric('tool_latency_ms', 42, { tool: 'list_pages', status: 'ok' });
+    log.metric('tool_latency_ms', 42, { tool: 'get_page', status: 'ok' });
     log.flushSync();
 
     const line = stderrWrites.find((l) => l.includes('tool_latency_ms'));
@@ -118,7 +118,7 @@ describe('Logger', () => {
     expect(parsed.level).toBe('metric');
     expect(parsed.msg).toBe('tool_latency_ms');
     expect(parsed.value).toBe(42);
-    expect(parsed.tool).toBe('list_pages');
+    expect(parsed.tool).toBe('get_page');
     expect(parsed.status).toBe('ok');
   });
 
