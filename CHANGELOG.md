@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-05-14
+
+### Fixed
+
+- BM25 returns 0 rows for multi-token queries
+
 ## [0.5.2] - 2026-05-14
 
 ### BREAKING
