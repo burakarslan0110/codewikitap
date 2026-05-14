@@ -32,9 +32,6 @@ importers:
       semver:
         specifier: ^7.8.0
         version: 7.8.0
-      sqlite-vec:
-        specifier: ^0.1.6
-        version: 0.1.9
       tinyglobby:
         specifier: ^0.2.16
         version: 0.2.16
@@ -88,6 +85,9 @@ importers:
       better-sqlite3:
         specifier: ^11.5.0
         version: 11.10.0
+      sqlite-vec:
+        specifier: ^0.1.6
+        version: 0.1.9
 
 packages:
 
@@ -3821,6 +3821,7 @@ snapshots:
       sqlite-vec-linux-arm64: 0.1.9
       sqlite-vec-linux-x64: 0.1.9
       sqlite-vec-windows-x64: 0.1.9
+    optional: true
 
   stackback@0.0.2: {}
 
