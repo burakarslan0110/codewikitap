@@ -6,10 +6,17 @@
  *   - a slow indexer surfaces status: 'index_building' (timeout race)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+
+// Shorten INDEX_BUILD_TIMEOUT_MS BEFORE config_rag.ts is loaded so the
+// timeout-race test below fires its envelope deterministically in ~500ms
+// instead of the 15s production default. vi.hoisted runs before any import.
+vi.hoisted(() => {
+  process.env.CODEWIKI_INDEX_BUILD_TIMEOUT_MS = '500';
+});
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -236,23 +243,19 @@ describe('find_neighbors integration — index_building timeout race', () => {
       await block;
       return { nodes: [], notFound: false, emptyShell: false, firstCommitSha: slowSha };
     };
-    // Override the timeout for this call via the tool input is not exposed,
-    // so we rely on the INDEX_BUILD_TIMEOUT_MS default (15000ms). Skip the
-    // long wait by calling a repo that's never in cache; the test setup put
-    // facebook/react in cache only when buildIndex !== false. Here we use a
-    // fresh repo.
+    // Override per-tool timeout is not exposed through the MCP boundary, so
+    // we rely on INDEX_BUILD_TIMEOUT_MS, set to 500ms by the vi.hoisted
+    // override at file top. The repo is uncached, so GraphQuery races the
+    // indexer (which is wedged on the blocked client.fetchPage above) and
+    // the timeout fires reliably.
     const callPromise = mcpClient.callTool({
       name: 'find_neighbors',
       arguments: { kind: 'section_links', repo: 'never-indexed/repo', section_slug: 'a' },
     });
-    // Wait for the timeout to fire (15s default); release the block after.
     const r = await callPromise;
     release();
     const s = structuredOf<FindNeighborsResponse>(r);
-    // Whether the timeout fires before or after release depends on timing;
-    // both outcomes are acceptable as long as the response is structurally
-    // valid. We just assert the schema.
-    expect(s.neighbors).toBeDefined();
-    expect(typeof s.truncated).toBe('boolean');
-  }, 25000);
+    expect(s.status).toBe('index_building');
+    expect(s.neighbors).toEqual([]);
+  }, 5000);
 });
