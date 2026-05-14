@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap/main/assets/banner.png?v=2" alt="CodeWikiTap" width="720"/>
+  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/banner.png?v=2" alt="CodeWikiTap" width="720"/>
 </p>
 
 <h1 align="center">CodeWikiTap</h1>
@@ -12,7 +12,7 @@
   <a href="https://www.npmjs.com/package/codewikitap"><img src="https://img.shields.io/npm/v/codewikitap?color=1D4ED8&label=npm" alt="npm"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1D4ED8.svg" alt="MIT"/></a>
   <a href=".nvmrc"><img src="https://img.shields.io/badge/node-20.x-339933?logo=node.js&logoColor=white" alt="Node"/></a>
-  <a href="https://github.com/burakarslan0110/codewikitap/actions"><img src="https://github.com/burakarslan0110/codewikitap/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://github.com/burakarslan0110/codewikitap-mcp/actions"><img src="https://github.com/burakarslan0110/codewikitap-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <img src="https://img.shields.io/badge/status-unofficial-orange" alt="Unofficial"/>
 </p>
 
@@ -465,7 +465,7 @@ Geçerli `--target` değerleri: `claude-code`, `cursor`, `codex-cli`, `gemini-cl
 
 | CLI | Yöntem | Komut / Yol |
 |---|---|---|
-| Claude Code | Plugin marketplace | `/plugin marketplace add burakarslan0110/codewikitap` → `/plugin install codewikitap@burakarslan0110-codewikitap` |
+| Claude Code | Plugin marketplace | `/plugin marketplace add burakarslan0110/codewikitap-mcp` → `/plugin install codewikitap@burakarslan0110-codewikitap` |
 | Claude Code | Manuel JSON | `~/.claude/mcp.json` veya proje kökünde `.mcp.json` ([blok](#claude-code)) |
 | Cursor | Manuel JSON | `~/.cursor/mcp.json` veya `<proje>/.cursor/mcp.json` ([blok](#cursor)) |
 | Codex CLI | Manuel TOML | `~/.codex/config.toml` — ilk-taraf marketplace yok ([blok](#codex-cli)) |
@@ -495,7 +495,7 @@ Tüm yollar aşağıda dokümante edilen kanonik config konumlarını gösterir.
 Veya Claude plugin marketplace üzerinden:
 
 ```text
-/plugin marketplace add burakarslan0110/codewikitap
+/plugin marketplace add burakarslan0110/codewikitap-mcp
 /plugin install codewikitap@burakarslan0110-codewikitap
 ```
 

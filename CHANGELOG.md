@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-05-15
+
+### Fixed
+
+- **npm publish provenance mismatch** — `package.json:repository.url`, `homepage`, `bugs.url` updated from the pre-rename `burakarslan0110/codewikitap` to the current `burakarslan0110/codewikitap-mcp`. v0.6.0's CI publish rejected the sigstore attestation (E422) because the GitHub-emitted provenance recorded the renamed repo while `package.json` still pointed at the redirect URL. **v0.6.0 was never on npm; v0.6.1 is the first real release of the v0.6 feature set.** Same fix applied to `.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, README badges, and the `/plugin marketplace add …` install commands in both READMEs.
+
 ## [0.6.0] - 2026-05-15
 
 ### BREAKING

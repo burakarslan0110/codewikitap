@@ -1,6 +1,6 @@
 {
   "name": "codewikitap",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity). Scans your project's manifests, detects which dependencies have CodeWiki coverage, and exposes 6 structured tools with hybrid sparse+dense retrieval, knowledge graph traversal, off-project query, and always-on citation enforcement.",
   "type": "module",
   "main": "dist/index.js",
@@ -59,13 +59,13 @@
   ],
   "author": "Burak Arslan <burakarslan0110@gmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/burakarslan0110/codewikitap#readme",
+  "homepage": "https://github.com/burakarslan0110/codewikitap-mcp#readme",
   "bugs": {
-    "url": "https://github.com/burakarslan0110/codewikitap/issues"
+    "url": "https://github.com/burakarslan0110/codewikitap-mcp/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/burakarslan0110/codewikitap.git"
+    "url": "git+https://github.com/burakarslan0110/codewikitap-mcp.git"
   },
   "publishConfig": {
     "access": "public"
