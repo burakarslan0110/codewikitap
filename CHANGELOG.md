@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-05-17
+
+### Added
+
+- **VS Code installer adapter (`vscode`).** Ninth supported coding-agent target. `npx codewikitap install --target=vscode` writes a valid VS Code MCP entry to either `<cwd>/.vscode/mcp.json` (project) or VS Code's platform-aware user data dir (Linux `~/.config/Code/User/mcp.json` honoring `XDG_CONFIG_HOME`, macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`). Uses the `servers.<name>` key (NOT `mcpServers`) and `type: "stdio"` discriminator per the [VS Code MCP schema](https://code.visualstudio.com/docs/copilot/reference/mcp-configuration). macOS deliberately ignores `XDG_CONFIG_HOME` (Electron's `app.getPath('userData')` resolves to `~/Library/Application Support/` and does not read XDG) — documented inline and locked by unit test.
+
+### Changed
+
+- **`InstallerAdapter` interface gains `readonly keyPath: string`.** Each adapter now declares its diff-lookup key path next to its `merge` logic instead of via an out-of-band switch in `wizard.ts`. The `keyPathFor` helper is removed; the call site uses `adapter.keyPath` directly. Eight existing adapters get one-line additions; behavior is byte-identical to prior. `codex-cli` deliberately preserves its pre-existing `mcpServers.codewikitap` lookup (the TOML stores under `mcp_servers.codewikitap`, so the diff prompt was already non-functional for codex-cli on re-write) — fixing that is a separate bugfix.
+
+### Fixed
+
+- **`package.json` description now enumerates all 9 supported agents.** Prior versions (≤ v0.7.1) had Windsurf missing from the description's parenthesized agent list while README/docs listed it. The v0.7.2 description is now consistent with the other docs.
+
 ## [0.7.1] - 2026-05-16
 
 ### Changed
