@@ -8,6 +8,7 @@ export const cursor: InstallerAdapter = {
   id: 'cursor',
   displayName: 'Cursor',
   supportedScopes: ['project', 'user'],
+  keyPath: 'mcpServers.codewikitap',
   pathFor(scope, ctx) {
     return scope === 'project'
       ? path.join(ctx.cwd, '.cursor', 'mcp.json')

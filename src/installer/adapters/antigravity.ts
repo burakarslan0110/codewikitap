@@ -10,6 +10,7 @@ export const antigravity: InstallerAdapter = {
   id: 'antigravity',
   displayName: 'Antigravity',
   supportedScopes: ['user'],
+  keyPath: 'mcpServers.codewikitap',
   pathFor(_scope, ctx) {
     return path.join(ctx.home, '.gemini', 'antigravity', 'mcp_config.json');
   },

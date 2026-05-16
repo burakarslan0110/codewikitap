@@ -10,6 +10,11 @@ export const codexCli: InstallerAdapter = {
   id: 'codex-cli',
   displayName: 'Codex CLI',
   supportedScopes: ['user'],
+  // NOTE: Codex CLI stores its entries under `mcp_servers.codewikitap` in TOML,
+  // but the wizard's diff lookup has always used `mcpServers.codewikitap` (the
+  // JSON-default). This preserves that pre-existing behavior — the diff prompt
+  // for codex-cli never fires on a re-write. Fixing this is a separate bugfix.
+  keyPath: 'mcpServers.codewikitap',
   pathFor(_scope, ctx) {
     return path.join(ctx.home, '.codex', 'config.toml');
   },

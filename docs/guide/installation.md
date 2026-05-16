@@ -28,7 +28,7 @@ npx codewikitap install --target=claude-code --scope=user --yes
 npx codewikitap install --target=cursor --scope=project --dry-run    # preview only
 ```
 
-Available `--target` IDs: `claude-code`, `cursor`, `codex-cli`, `gemini-cli`, `qwen-code`, `opencode`, `windsurf`, `antigravity`. Available `--scope` values: `project`, `user` (some targets are user-only — the wizard auto-resolves).
+Available `--target` IDs: `claude-code`, `cursor`, `vscode`, `codex-cli`, `gemini-cli`, `qwen-code`, `opencode`, `windsurf`, `antigravity`. Available `--scope` values: `project`, `user` (some targets are user-only — the wizard auto-resolves).
 
 ## Alternative installation methods
 
@@ -37,6 +37,7 @@ Available `--target` IDs: `claude-code`, `cursor`, `codex-cli`, `gemini-cli`, `q
 | Claude Code | Plugin marketplace | `/plugin marketplace add burakarslan0110/codewikitap-mcp` → `/plugin install codewikitap@burakarslan0110-codewikitap` |
 | Claude Code | Manual JSON | `~/.claude/mcp.json` or project `.mcp.json` |
 | Cursor | Manual JSON | `~/.cursor/mcp.json` or `<project>/.cursor/mcp.json` |
+| VS Code | Manual JSON | `<project>/.vscode/mcp.json` or platform-aware user dir (Linux `~/.config/Code/User/mcp.json`, macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`) |
 | Codex CLI | Manual TOML | `~/.codex/config.toml` |
 | Gemini CLI | Manual JSON | `~/.gemini/settings.json` |
 | Qwen Code | Manual JSON | `~/.qwen/settings.json` or project equivalent |
@@ -71,6 +72,24 @@ Or via the Claude plugin marketplace:
 ### Cursor
 
 `~/.cursor/mcp.json` or `<project>/.cursor/mcp.json` — same JSON shape as Claude Code.
+
+### VS Code
+
+`<project>/.vscode/mcp.json` (workspace) or VS Code's user data dir (`MCP: Open User Configuration` from the Command Palette). VS Code uses `servers.<name>` (NOT `mcpServers`) and each stdio entry takes a `type` discriminator:
+
+```json
+{
+  "servers": {
+    "codewikitap": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "codewikitap"]
+    }
+  }
+}
+```
+
+User-scope path varies by OS: `~/.config/Code/User/mcp.json` on Linux (honors `XDG_CONFIG_HOME`), `~/Library/Application Support/Code/User/mcp.json` on macOS, `%APPDATA%\Code\User\mcp.json` on Windows. The `npx codewikitap install --target=vscode` wizard handles all three automatically.
 
 ### Codex CLI
 

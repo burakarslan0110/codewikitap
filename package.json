@@ -1,7 +1,7 @@
 {
   "name": "codewikitap",
   "version": "0.7.1",
-  "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity). Scans your project's manifests, detects which dependencies have CodeWiki coverage, and exposes 5 structured tools with hybrid sparse+dense retrieval, knowledge graph traversal, off-project query, and always-on citation enforcement.",
+  "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity). Scans your project's manifests, detects which dependencies have CodeWiki coverage, and exposes 5 structured tools with hybrid sparse+dense retrieval, knowledge graph traversal, off-project query, and always-on citation enforcement.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -52,6 +52,8 @@
     "ai-agent",
     "claude-code",
     "cursor",
+    "vscode",
+    "visual-studio-code",
     "codex",
     "codex-cli",
     "gemini-cli",

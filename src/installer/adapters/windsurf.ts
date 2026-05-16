@@ -10,6 +10,7 @@ export const windsurf: InstallerAdapter = {
   id: 'windsurf',
   displayName: 'Windsurf',
   supportedScopes: ['user'],
+  keyPath: 'mcpServers.codewikitap',
   pathFor(_scope, ctx) {
     return path.join(ctx.home, '.codeium', 'windsurf', 'mcp_config.json');
   },

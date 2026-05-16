@@ -8,6 +8,7 @@ export const claudeCode: InstallerAdapter = {
   id: 'claude-code',
   displayName: 'Claude Code',
   supportedScopes: ['project', 'user'],
+  keyPath: 'mcpServers.codewikitap',
   pathFor(scope, ctx) {
     return scope === 'project' ? path.join(ctx.cwd, '.mcp.json') : path.join(ctx.home, '.claude', 'mcp.json');
   },

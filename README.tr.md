@@ -32,7 +32,7 @@ npx codewikitap install
 
 ## Ne işe yarar?
 
-Makinende lokal çalışan küçük bir Node programı — bir [**MCP server**](https://modelcontextprotocol.io). Kodlama agent'ın (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) onunla stdio üzerinden konuşur ve server **5 araç** sunar; agent ihtiyaç duyduğu anda [Google CodeWiki](https://codewiki.google) dokümantasyonunu context'ine çekebilir — heading sınırlarında parçalanmış, hybrid BM25 + vector + cross-encoder rerank ile skorlanmış, byte-equal citation footer ile damgalanmış olarak.
+Makinende lokal çalışan küçük bir Node programı — bir [**MCP server**](https://modelcontextprotocol.io). Kodlama agent'ın (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) onunla stdio üzerinden konuşur ve server **5 araç** sunar; agent ihtiyaç duyduğu anda [Google CodeWiki](https://codewiki.google) dokümantasyonunu context'ine çekebilir — heading sınırlarında parçalanmış, hybrid BM25 + vector + cross-encoder rerank ile skorlanmış, byte-equal citation footer ile damgalanmış olarak.
 
 ```
    ┌─────────────────┐  stdio    ┌──────────────────┐  hybrid retrieval   ┌────────────────┐
@@ -60,6 +60,7 @@ npx codewikitap install --target=claude-code --scope=user --yes
 |---|---|
 | Claude Code | `~/.claude/mcp.json` veya proje `.mcp.json` (veya [plugin marketplace](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum#claude-code)) |
 | Cursor | `~/.cursor/mcp.json` veya `<proje>/.cursor/mcp.json` |
+| VS Code | `<proje>/.vscode/mcp.json` veya platforma göre user dir (Linux `~/.config/Code/User/mcp.json`, macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`) |
 | Codex CLI | `~/.codex/config.toml` |
 | Gemini CLI | `~/.gemini/settings.json` |
 | Qwen Code | `~/.qwen/settings.json` |

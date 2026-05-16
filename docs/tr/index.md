@@ -36,8 +36,8 @@ features:
     title: Lokal-first
     details: SQLite cache, ONNX inference, sıfır telemetri. API key yok. Tek network trafiği CodeWiki'nin kendisine.
   - icon: 🧩
-    title: 8 agent destekli
-    details: Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity. Tek interaktif sihirbaz her birine doğru config bloğunu yazar.
+    title: 9 agent destekli
+    details: Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity. Tek interaktif sihirbaz her birine doğru config bloğunu yazar.
 ---
 
 ## Hızlı kurulum

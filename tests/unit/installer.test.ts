@@ -586,6 +586,14 @@ describe('installer/io.ts', () => {
           expect(source).not.toMatch(/process\.platform/);
         },
       );
+
+      it('platform-aware adapters (opencode, vscode) are NOT in HOME_ANCHORED', () => {
+        // Reverse-form lock: prevents a future engineer from "fixing" a test
+        // failure by accidentally adding a platform-aware adapter to this
+        // list, which would silently disable the platform-branch invariant.
+        expect(HOME_ANCHORED).not.toContain('opencode.ts');
+        expect(HOME_ANCHORED).not.toContain('vscode.ts');
+      });
     });
   });
 
@@ -615,6 +623,146 @@ describe('installer/io.ts', () => {
       });
       // critical: NOT mcpServers
       expect(parsed.mcpServers).toBeUndefined();
+    });
+  });
+
+  describe('adapters/vscode (servers.<name> + type:"stdio")', () => {
+    it('id, displayName, and supportedScopes are correct', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      expect(vscode.id).toBe('vscode');
+      expect(vscode.displayName).toBe('Visual Studio Code');
+      expect(vscode.supportedScopes).toEqual(expect.arrayContaining(['project', 'user']));
+      expect(vscode.supportedScopes).toHaveLength(2);
+    });
+
+    it.each(['linux', 'darwin', 'win32'] as const)(
+      '%s: pathFor(project) → <cwd>/.vscode/mcp.json',
+      async (platform) => {
+        const { vscode } = await import('../../src/installer/adapters/vscode.js');
+        expect(
+          vscode.pathFor('project', { home: tmpRoot, cwd: tmpRoot, platform, env: {} }),
+        ).toBe(path.join(tmpRoot, '.vscode', 'mcp.json'));
+      },
+    );
+
+    it('linux: pathFor(user) honors XDG_CONFIG_HOME when set', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      const xdg = path.join(tmpRoot, 'xdg-custom');
+      const resolved = vscode.pathFor('user', {
+        home: tmpRoot,
+        cwd: tmpRoot,
+        platform: 'linux',
+        env: { XDG_CONFIG_HOME: xdg },
+      });
+      expect(resolved).toBe(path.join(xdg, 'Code', 'User', 'mcp.json'));
+    });
+
+    it('linux: pathFor(user) falls back to <home>/.config when XDG unset', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      const resolved = vscode.pathFor('user', {
+        home: tmpRoot,
+        cwd: tmpRoot,
+        platform: 'linux',
+        env: {},
+      });
+      expect(resolved).toBe(path.join(tmpRoot, '.config', 'Code', 'User', 'mcp.json'));
+    });
+
+    it('linux: pathFor(user) falls back to <home>/.config when XDG is empty string', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      const resolved = vscode.pathFor('user', {
+        home: tmpRoot,
+        cwd: tmpRoot,
+        platform: 'linux',
+        env: { XDG_CONFIG_HOME: '' },
+      });
+      expect(resolved).toBe(path.join(tmpRoot, '.config', 'Code', 'User', 'mcp.json'));
+    });
+
+    it('darwin: pathFor(user) → <home>/Library/Application Support/Code/User/mcp.json (IGNORES XDG_CONFIG_HOME)', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      // Pass XDG_CONFIG_HOME — must be ignored on darwin (locks divergence from opencode).
+      const resolved = vscode.pathFor('user', {
+        home: tmpRoot,
+        cwd: tmpRoot,
+        platform: 'darwin',
+        env: { XDG_CONFIG_HOME: '/should/be/ignored' },
+      });
+      expect(resolved).toBe(
+        path.join(tmpRoot, 'Library', 'Application Support', 'Code', 'User', 'mcp.json'),
+      );
+    });
+
+    it('win32: pathFor(user) honors APPDATA when set', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      const appData = path.join(tmpRoot, 'AppData', 'Roaming');
+      const resolved = vscode.pathFor('user', {
+        home: tmpRoot,
+        cwd: tmpRoot,
+        platform: 'win32',
+        env: { APPDATA: appData },
+      });
+      expect(resolved).toBe(path.join(appData, 'Code', 'User', 'mcp.json'));
+    });
+
+    it('win32: pathFor(user) falls back to <home>/AppData/Roaming when APPDATA unset', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      const resolved = vscode.pathFor('user', {
+        home: tmpRoot,
+        cwd: tmpRoot,
+        platform: 'win32',
+        env: {},
+      });
+      expect(resolved).toBe(
+        path.join(tmpRoot, 'AppData', 'Roaming', 'Code', 'User', 'mcp.json'),
+      );
+    });
+
+    it('serialize produces { servers: { codewikitap: { type: "stdio", ... } } }', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      const out = vscode.serialize(
+        vscode.merge({ status: 'missing' }, { command: 'npx', args: ['-y', 'codewikitap'] }),
+      );
+      const parsed = JSON.parse(out);
+      expect(parsed).toEqual({
+        servers: {
+          codewikitap: { type: 'stdio', command: 'npx', args: ['-y', 'codewikitap'] },
+        },
+      });
+      // critical: NOT mcpServers, NOT mcp
+      expect(parsed.mcpServers).toBeUndefined();
+      expect(parsed.mcp).toBeUndefined();
+    });
+
+    it('merge preserves unrelated servers.other entries on re-write', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      const out = vscode.serialize(
+        vscode.merge(
+          { status: 'parsed', value: { servers: { other: { type: 'stdio', command: 'node', args: ['o.js'] } } } },
+          { command: 'npx', args: ['-y', 'codewikitap'] },
+        ),
+      );
+      const parsed = JSON.parse(out);
+      expect(parsed).toEqual({
+        servers: {
+          other: { type: 'stdio', command: 'node', args: ['o.js'] },
+          codewikitap: { type: 'stdio', command: 'npx', args: ['-y', 'codewikitap'] },
+        },
+      });
+    });
+
+    it('read() returns status:missing for an absent file (sanity: delegates to readJsonFile)', async () => {
+      const { vscode } = await import('../../src/installer/adapters/vscode.js');
+      const out = await vscode.read(path.join(tmpRoot, 'absent.json'));
+      expect(out.status).toBe('missing');
+    });
+
+    it('source file references ctx.platform (positive lock: must NOT be home-anchored)', async () => {
+      // Reverse-form of the HOME_ANCHORED test. If a future change removes the
+      // platform branching from vscode.ts (making it accidentally home-anchored)
+      // this test fails — catching the regression in EITHER direction.
+      const source = await fs.readFile(path.join(ADAPTERS_DIR, 'vscode.ts'), 'utf8');
+      expect(source).toMatch(/ctx\.platform/);
     });
   });
 
@@ -731,11 +879,11 @@ describe('installer/io.ts', () => {
   });
 
   describe('adapters/index.ts registry', () => {
-    it('exports all 8 adapters with unique ids', async () => {
+    it('exports all 9 adapters with unique ids', async () => {
       const { ADAPTERS } = await import('../../src/installer/adapters/index.js');
       const ids = ADAPTERS.map((a) => a.id);
-      expect(ids).toHaveLength(8);
-      expect(new Set(ids).size).toBe(8);
+      expect(ids).toHaveLength(9);
+      expect(new Set(ids).size).toBe(9);
       expect(ids).toEqual(
         expect.arrayContaining([
           'claude-code',
@@ -746,6 +894,7 @@ describe('installer/io.ts', () => {
           'opencode',
           'windsurf',
           'antigravity',
+          'vscode',
         ]),
       );
     });
@@ -755,6 +904,33 @@ describe('installer/io.ts', () => {
       for (const a of ADAPTERS) {
         expect(a.supportedScopes.length).toBeGreaterThan(0);
       }
+    });
+
+    it('every adapter declares a keyPath; opencode and vscode are the documented exceptions', async () => {
+      const { ADAPTERS } = await import('../../src/installer/adapters/index.js');
+      const expected: Record<string, string> = {
+        'claude-code': 'mcpServers.codewikitap',
+        cursor: 'mcpServers.codewikitap',
+        'codex-cli': 'mcpServers.codewikitap', // preserves pre-existing keyPathFor behavior; see Task 2 notes
+        'gemini-cli': 'mcpServers.codewikitap',
+        'qwen-code': 'mcpServers.codewikitap',
+        windsurf: 'mcpServers.codewikitap',
+        antigravity: 'mcpServers.codewikitap',
+        opencode: 'mcp.codewikitap',
+        vscode: 'servers.codewikitap',
+      };
+      for (const a of ADAPTERS) {
+        expect(a.keyPath).toBe(expected[a.id]);
+      }
+    });
+
+    it('keyPathFor symbol has been removed from wizard.ts (replaced by adapter.keyPath)', async () => {
+      const wizardSrc = await fs.readFile(
+        path.resolve(TESTS_UNIT_DIR, '..', '..', 'src', 'installer', 'wizard.ts'),
+        'utf8',
+      );
+      expect(wizardSrc).not.toMatch(/function\s+keyPathFor/);
+      expect(wizardSrc).not.toMatch(/keyPathFor\s*\(/);
     });
   });
 

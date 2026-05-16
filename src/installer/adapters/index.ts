@@ -11,6 +11,7 @@ import { qwenCode } from './qwen_code.js';
 import { opencode } from './opencode.js';
 import { windsurf } from './windsurf.js';
 import { antigravity } from './antigravity.js';
+import { vscode } from './vscode.js';
 
 export const ADAPTERS: readonly InstallerAdapter[] = Object.freeze([
   claudeCode,
@@ -21,6 +22,7 @@ export const ADAPTERS: readonly InstallerAdapter[] = Object.freeze([
   opencode,
   windsurf,
   antigravity,
+  vscode,
 ]);
 
 export function findAdapter(id: string): InstallerAdapter | undefined {

@@ -17,6 +17,7 @@ export const opencode: InstallerAdapter = {
   id: 'opencode',
   displayName: 'opencode',
   supportedScopes: ['project', 'user'],
+  keyPath: 'mcp.codewikitap',
   pathFor(scope, ctx) {
     if (scope === 'project') return path.join(ctx.cwd, 'opencode.json');
     const platform = ctx.platform ?? process.platform;

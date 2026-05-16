@@ -176,6 +176,62 @@ describe('installer integration (TS-001..TS-009)', () => {
     });
   });
 
+  describe('TS-010: vscode servers.<name> + type:"stdio" (project scope)', () => {
+    it('writes .vscode/mcp.json with servers.codewikitap and type:"stdio"', async () => {
+      const start = Date.now();
+      const result = await run(
+        ['--target=vscode', '--scope=project', '--yes'],
+        env,
+        tmpCwd,
+      );
+      const elapsed = Date.now() - start;
+      expect(result.code).toBe(0);
+      expect(elapsed).toBeLessThan(5_000);
+      expect(result.stdout).not.toContain('Select target:');
+      const target = path.join(tmpCwd, '.vscode', 'mcp.json');
+      const parsed = JSON.parse(await fs.readFile(target, 'utf8'));
+      expect(parsed).toEqual({
+        servers: {
+          codewikitap: { type: 'stdio', command: 'npx', args: ['-y', 'codewikitap'] },
+        },
+      });
+      // critical: NOT mcpServers, NOT mcp
+      expect(parsed.mcpServers).toBeUndefined();
+      expect(parsed.mcp).toBeUndefined();
+    });
+  });
+
+  describe('TS-011: vscode user scope writes under VS Code user data dir (linux only)', () => {
+    // Skipped on darwin/win32 — per-platform path branching is locked at the
+    // unit level (tests/unit/installer.test.ts). CI runs Ubuntu, so this test
+    // covers the linux branch end-to-end through the CLI.
+    it.skipIf(process.platform !== 'linux')(
+      'writes ~/.config/Code/User/mcp.json (XDG cleared for determinism)',
+      async () => {
+        // Strip XDG_CONFIG_HOME so the assertion is reproducible regardless
+        // of the runner's environment. `undefined` removes the var from
+        // the spawned child's env.
+        const localEnv: NodeJS.ProcessEnv = { ...env, XDG_CONFIG_HOME: undefined };
+        const start = Date.now();
+        const result = await run(
+          ['--target=vscode', '--scope=user', '--yes'],
+          localEnv,
+          tmpCwd,
+        );
+        const elapsed = Date.now() - start;
+        expect(result.code).toBe(0);
+        expect(elapsed).toBeLessThan(5_000);
+        const target = path.join(tmpHome, '.config', 'Code', 'User', 'mcp.json');
+        const parsed = JSON.parse(await fs.readFile(target, 'utf8'));
+        expect(parsed).toEqual({
+          servers: {
+            codewikitap: { type: 'stdio', command: 'npx', args: ['-y', 'codewikitap'] },
+          },
+        });
+      },
+    );
+  });
+
   describe('TS-006: Headless flag overrides', () => {
     it('exits 0 within 5s with no prompt strings and writes the file', async () => {
       const start = Date.now();

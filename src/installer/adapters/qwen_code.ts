@@ -9,6 +9,7 @@ export const qwenCode: InstallerAdapter = {
   id: 'qwen-code',
   displayName: 'Qwen Code',
   supportedScopes: ['project', 'user'],
+  keyPath: 'mcpServers.codewikitap',
   pathFor(scope, ctx) {
     return scope === 'project'
       ? path.join(ctx.cwd, '.qwen', 'settings.json')

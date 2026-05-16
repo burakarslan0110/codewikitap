@@ -110,13 +110,6 @@ export function formatDiff(current: unknown, proposed: unknown): string {
   return lines.join('\n');
 }
 
-function keyPathFor(adapter: InstallerAdapter): string {
-  // opencode is the only registered adapter that uses `mcp.<name>` instead
-  // of `mcpServers.<name>`. Everything else (including the Codex TOML, which
-  // has its own merge path) uses `mcpServers.codewikitap`.
-  return adapter.id === 'opencode' ? 'mcp.codewikitap' : 'mcpServers.codewikitap';
-}
-
 function stdinHasInputSource(): boolean {
   // TTY → interactive terminal. FIFO → shell pipe. Socket → child_process.spawn
   // with stdio:'pipe'. File → redirected from a regular file (`< input.txt`).
@@ -227,7 +220,7 @@ export async function runWizard(opts: WizardOpts, depsIn?: WizardDeps): Promise<
     // a different shape than the canonical entry.
     let action: 'overwrite' | 'skip' = 'overwrite';
     if (current.status === 'parsed') {
-      const keyPath = keyPathFor(adapter);
+      const keyPath = adapter.keyPath;
       const existing = extractCurrentEntry(current.value, keyPath);
       const proposed = extractCurrentEntry(merged, keyPath);
       const differs = existing !== undefined && JSON.stringify(existing) !== JSON.stringify(proposed);

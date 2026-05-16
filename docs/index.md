@@ -36,8 +36,8 @@ features:
     title: Local-first
     details: SQLite cache, ONNX inference, zero telemetry. No API keys. The only network traffic is to CodeWiki itself.
   - icon: 🧩
-    title: 8 agents supported
-    details: Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity. One interactive wizard writes the right config block for each.
+    title: 9 agents supported
+    details: Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity. One interactive wizard writes the right config block for each.
 ---
 
 ## Quick install

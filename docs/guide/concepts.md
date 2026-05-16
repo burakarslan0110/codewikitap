@@ -22,7 +22,7 @@ CodeWikiTap is an independent open-source project. The "CodeWiki" name is refere
 
 ## CodeWikiTap — the local MCP server
 
-CodeWikiTap is a small Node/TypeScript program that runs locally on your machine as a **Model Context Protocol (MCP) server**. Your coding agent (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) talks to it over stdio, and it exposes a locked surface of **five tools** that let the agent pull CodeWiki content into its context window on demand.
+CodeWikiTap is a small Node/TypeScript program that runs locally on your machine as a **Model Context Protocol (MCP) server**. Your coding agent (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) talks to it over stdio, and it exposes a locked surface of **five tools** that let the agent pull CodeWiki content into its context window on demand.
 
 The shortest mental model:
 

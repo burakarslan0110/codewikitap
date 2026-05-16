@@ -32,7 +32,7 @@ npx codewikitap install
 
 ## What it is
 
-A small Node program that runs locally as an [**MCP server**](https://modelcontextprotocol.io). Your coding agent (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) talks to it over stdio and the server exposes **5 tools** that let the agent pull [Google CodeWiki](https://codewiki.google) documentation into context on demand — chunked at heading boundaries, scored with hybrid BM25 + vector + cross-encoder rerank, and stamped with a byte-equal citation footer.
+A small Node program that runs locally as an [**MCP server**](https://modelcontextprotocol.io). Your coding agent (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) talks to it over stdio and the server exposes **5 tools** that let the agent pull [Google CodeWiki](https://codewiki.google) documentation into context on demand — chunked at heading boundaries, scored with hybrid BM25 + vector + cross-encoder rerank, and stamped with a byte-equal citation footer.
 
 ```
    ┌─────────────────┐  stdio    ┌──────────────────┐  hybrid retrieval   ┌────────────────┐
@@ -60,6 +60,7 @@ npx codewikitap install --target=claude-code --scope=user --yes
 |---|---|
 | Claude Code | `~/.claude/mcp.json` or project `.mcp.json` (or [plugin marketplace](https://burakarslan0110.github.io/codewikitap-mcp/guide/installation#claude-code)) |
 | Cursor | `~/.cursor/mcp.json` or `<project>/.cursor/mcp.json` |
+| VS Code | `<project>/.vscode/mcp.json` or platform-aware user dir (Linux `~/.config/Code/User/mcp.json`, macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`) |
 | Codex CLI | `~/.codex/config.toml` |
 | Gemini CLI | `~/.gemini/settings.json` |
 | Qwen Code | `~/.qwen/settings.json` |

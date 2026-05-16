@@ -25,6 +25,14 @@ export interface InstallerAdapter {
   readonly id: string;
   readonly displayName: string;
   readonly supportedScopes: readonly Scope[];
+  // Dotted key path used by the wizard's diff/skip logic to locate this
+  // adapter's entry inside the parsed config tree. JSON adapters use
+  // `mcpServers.codewikitap` by default; `opencode` uses `mcp.codewikitap`
+  // and `vscode` uses `servers.codewikitap`. The codex-cli TOML adapter
+  // sets this to `mcpServers.codewikitap` to preserve the pre-existing
+  // diff-lookup behavior (it serializes under `mcp_servers`, but the diff
+  // never matched on it — fixing that is a separate bugfix).
+  readonly keyPath: string;
   pathFor(scope: Scope, ctx: AdapterContext): string;
   read(filePath: string): Promise<AdapterReadResult>;
   merge(parsed: AdapterReadResult, entry: McpEntry): unknown;

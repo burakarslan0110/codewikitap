@@ -8,6 +8,7 @@ export const geminiCli: InstallerAdapter = {
   id: 'gemini-cli',
   displayName: 'Gemini CLI',
   supportedScopes: ['project', 'user'],
+  keyPath: 'mcpServers.codewikitap',
   pathFor(scope, ctx) {
     return scope === 'project'
       ? path.join(ctx.cwd, '.gemini', 'settings.json')
