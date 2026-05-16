@@ -8,3 +8,5 @@ onlyBuiltDependencies:
   - esbuild
   - protobufjs
   - sharp
+managePackageManagerVersions: false
+verifyDepsBeforeRun: false
