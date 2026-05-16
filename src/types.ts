@@ -20,8 +20,8 @@ export type Confidence = 'high' | 'medium' | 'low';
 /**
  * v0.6: detected framework attached to a `ProjectScan` by `detectFrameworks`.
  * The agent uses this as a structured shortcut — `sourceRepo` is the GitHub
- * `owner/repo` slug for which to call `request_indexing` / `get_page` /
- * `find_chunks`.
+ * `owner/repo` slug for which to call `get_page` / `find_chunks` (or
+ * `get_page({ prepareOnly: true })` to pre-warm the index).
  *
  * Confidence semantics:
  *   - 'high'   = the framework runtime entry itself (next, django,
@@ -33,7 +33,7 @@ export type Confidence = 'high' | 'medium' | 'low';
 export interface FrameworkContext {
   name: string;
   confidence: Confidence;
-  /** GitHub `owner/repo` for `request_indexing` / `get_page`. */
+  /** GitHub `owner/repo` for `get_page` / `get_page({ prepareOnly: true })`. */
   sourceRepo: string;
   /** Where it was found, e.g. `package.json:dependencies.next`. */
   detectedFrom: string;
@@ -182,9 +182,9 @@ export class CodeWikiError extends Error {
 /**
  * RC2 (MCP -32000 reconnect fix): Playwright's `chromium-headless-shell`
  * binary is missing or the parallel `ensurePlaywright` install is still
- * in flight / has rejected. Browser-dependent tools (`get_page`,
- * `list_pages`, `find_chunks` cache-miss, `find_neighbors` cache-miss,
- * `request_indexing`) surface this; non-browser tools
+ * in flight / has rejected. Browser-dependent tools (`get_page` —
+ * including its `prepareOnly` path — `find_chunks` cache-miss,
+ * `find_neighbors` cache-miss) surface this; non-browser tools
  * (`list_project_dependencies`, `resolve_repo`) are unaffected. The
  * `codewiki_client.defaultFetchPage` boundary catches this and remaps it
  * to `CodeWikiError('rate_limited', ..., retryAfterSeconds: 30)` so the

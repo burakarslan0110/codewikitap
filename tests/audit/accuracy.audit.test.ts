@@ -209,7 +209,7 @@ describe('AUDIT_TS_018: truncated invariant unified across happy + offset-beyond
       r1 = await mcpClient.callTool({ name: 'find_chunks', arguments: { repo: 'audit/fixture', query: 'core', k: 8 } });
       s1 = struct(r1);
     }
-    // Use the chunkCount from a request_indexing call to bound the offset
+    // Use the chunkCount from a get_page({prepareOnly:true}) call to bound the offset
     // far beyond any reasonable rerank window for this fixture.
     const r2 = await mcpClient.callTool({
       name: 'find_chunks',

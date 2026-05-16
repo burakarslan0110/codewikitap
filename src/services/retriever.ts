@@ -118,8 +118,8 @@ export interface FindChunksResult {
   /**
    * Only set when `status === 'index_building'`. A coarse estimate (from
    * `Indexer.estimateRemainingMs` rolling window) the agent can use to choose
-   * between retrying `find_chunks` vs calling `request_indexing` for a future
-   * warm-cache hit. Clamped to >= 0.
+   * between retrying `find_chunks` vs calling `get_page({ prepareOnly: true })`
+   * for a future warm-cache hit. Clamped to >= 0.
    */
   estimatedRemainingSeconds?: number;
   fallbacks?: Fallback[];
@@ -552,9 +552,9 @@ export class Retriever {
       ]);
       if (raced.kind === 'timeout') {
         // Include estimatedRemainingSeconds so agents can decide between
-        // waiting + retrying find_chunks vs calling request_indexing for a
-        // future warm-cache hit. Reads the rolling-window estimate from the
-        // indexer (cold-path default kicks in for fresh installs).
+        // waiting + retrying find_chunks vs calling get_page({prepareOnly:true})
+        // for a future warm-cache hit. Reads the rolling-window estimate from
+        // the indexer (cold-path default kicks in for fresh installs).
         const elapsed = Date.now() - raceStartedAt;
         const remainingMs = this.deps.indexer.estimateRemainingMs(elapsed);
         return {

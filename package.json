@@ -1,7 +1,7 @@
 {
   "name": "codewikitap",
-  "version": "0.6.1",
-  "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity). Scans your project's manifests, detects which dependencies have CodeWiki coverage, and exposes 6 structured tools with hybrid sparse+dense retrieval, knowledge graph traversal, off-project query, and always-on citation enforcement.",
+  "version": "0.7.0",
+  "description": "Project-aware MCP server that brings Google CodeWiki documentation into coding agents (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity). Scans your project's manifests, detects which dependencies have CodeWiki coverage, and exposes 5 structured tools with hybrid sparse+dense retrieval, knowledge graph traversal, off-project query, and always-on citation enforcement.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -28,6 +28,7 @@
     "lint": "node ./node_modules/eslint/bin/eslint.js src tests scripts --ext .ts",
     "test": "node ./node_modules/vitest/vitest.mjs run --project unit",
     "test:integration": "node ./node_modules/vitest/vitest.mjs run --project integration",
+    "test:perf": "node ./node_modules/vitest/vitest.mjs run --project integration tests/integration/perf.integration.test.ts",
     "test:all": "node ./node_modules/vitest/vitest.mjs run --project unit --project integration",
     "audit": "node ./node_modules/vitest/vitest.mjs run --project audit",
     "capture-fixtures": "node ./node_modules/tsx/dist/cli.mjs scripts/capture-fixtures.ts",

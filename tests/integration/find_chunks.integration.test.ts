@@ -174,9 +174,10 @@ describe('find_chunks integration — happy path', () => {
 });
 
 describe('find_chunks integration — tool surface lock', () => {
-  it('the 7-tool surface is registered and find_chunks is callable via MCP', async () => {
-    // The fact that the previous tests succeeded already proves this; this
-    // test confirms the lock-list contract through a list_tools call too.
+  it('the 5-tool surface is registered and find_chunks is callable via MCP', async () => {
+    // v0.7: surface dropped to 5 names. request_indexing folded into
+    // get_page({ prepareOnly: true }); list_pages still exposed via
+    // get_page({ listPages: true }).
     const tools = await mcpClient.listTools();
     const names = tools.tools.map((t) => t.name).sort();
     expect(names).toEqual([
@@ -184,7 +185,6 @@ describe('find_chunks integration — tool surface lock', () => {
       'find_neighbors',
       'get_page',
       'list_project_dependencies',
-      'request_indexing',
       'resolve_repo',
     ]);
   });

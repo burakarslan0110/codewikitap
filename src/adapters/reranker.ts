@@ -157,6 +157,18 @@ export class Reranker {
   /** Lazy-resolve the underlying scorer (single-flight + bounded race). */
   private async resolveScorer(): Promise<ScorerImpl> {
     if (this.injectedScorer) return this.injectedScorer;
+    // v0.7 test-mode seam: `CODEWIKI_TEST_STUB_RERANKER=1` bypasses the real
+    // cross-encoder load; score() returns deterministically decreasing values.
+    // Same rationale as the embedder seam — perf harness only.
+    if (process.env.CODEWIKI_TEST_STUB_RERANKER === '1') {
+      const stub: ScorerImpl = {
+        async score(_query: string, candidates: string[]): Promise<number[]> {
+          return candidates.map((_, i) => 1 - i * 0.01);
+        },
+      };
+      this.loadPromise = Promise.resolve(stub);
+      return this.loadPromise;
+    }
     if (!this.loadPromise) {
       this.loadPromise = this.loadScorerWithTimeout();
       // On failure, clear loadPromise so a later (post-breaker) call retries.

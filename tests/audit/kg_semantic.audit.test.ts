@@ -154,7 +154,7 @@ describe('AUDIT_TS_021: find_neighbors query → score field on section/diagram_
 
   it('section neighbors carry numeric score in [0, 1] when query is set', async () => {
     // Warm indexer first (so find_neighbors hits the populated graph).
-    await h.mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+    await h.mcpClient.callTool({ name: 'get_page', arguments: { repo: 'audit/fixture', prepareOnly: true } });
 
     const s = await callNeighborsRaceSafe(h.mcpClient, {
       kind: 'section_links',
@@ -177,7 +177,7 @@ describe('AUDIT_TS_021: find_neighbors query → score field on section/diagram_
   });
 
   it('repo neighbors (cross_repo) do NOT carry score field when query is set', async () => {
-    await h.mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+    await h.mcpClient.callTool({ name: 'get_page', arguments: { repo: 'audit/fixture', prepareOnly: true } });
 
     const s = await callNeighborsRaceSafe(h.mcpClient, {
       kind: 'cross_repo',
@@ -208,7 +208,7 @@ describe('AUDIT_TS_022: find_neighbors semantic-rank ordering quality on determi
   afterEach(async () => { await teardown(h); });
 
   it('section_links(overview, out, query="core architecture entry point") ranks core above api', async () => {
-    await h.mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+    await h.mcpClient.callTool({ name: 'get_page', arguments: { repo: 'audit/fixture', prepareOnly: true } });
 
     const s = await callNeighborsRaceSafe(h.mcpClient, {
       kind: 'section_links',
@@ -256,8 +256,8 @@ describe('AUDIT_TS_023: find_neighbors WITHOUT query does NOT load embedder', ()
     const h = await setupServerWith(spyEmbedder);
     try {
       // Warm indexer; subsequent encode calls inside find_neighbors are what
-      // the assertions care about. Snapshot baseline AFTER request_indexing.
-      await h.mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+      // the assertions care about. Snapshot baseline AFTER get_page({prepareOnly:true}).
+      await h.mcpClient.callTool({ name: 'get_page', arguments: { repo: 'audit/fixture', prepareOnly: true } });
       const encodeInputsBaselineLen = encodeInputs.length;
 
       // No-query branch: must not invoke encode.
@@ -325,7 +325,7 @@ describe('AUDIT_TS_024: find_neighbors with embedder error → status=retry + re
     const h = await setupServerWith(throwingEmbedder);
     try {
       // Warm indexer (succeeds — pre-baseline path).
-      await h.mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+      await h.mcpClient.callTool({ name: 'get_page', arguments: { repo: 'audit/fixture', prepareOnly: true } });
       beforeBaseline = false;
 
       // Query-encode path throws → retriever's catch at graph_query.ts:554-568

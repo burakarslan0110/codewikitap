@@ -156,3 +156,30 @@ export const PLAYWRIGHT_INSTALL_TIMEOUT_MS = envNumber(
   'CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS',
   180_000,
 );
+
+/**
+ * Heap-cap self-reexec (v0.7):
+ * Default Node old-space heap budget the bin entry self-execs with when
+ * `--max-old-space-size` is absent from `process.execArgv`. 1.5 GB is well
+ * above the warm RSS of (embedder + reranker + sqlite-vec) — verified
+ * ~640–700 MB in v0.6.1 with the existing `quantized: true` loads — but
+ * still leaves margin against the Linux OOM-killer on 7.5 GB / 2 GB-swap
+ * hosts where v0.6.1 was SIGKILL'd 5 times in 15 min.
+ *
+ * Operator escape hatches:
+ *   - `CODEWIKI_NODE_HEAP_MB=<n>` overrides the cap.
+ *   - `CODEWIKI_DISABLE_HEAP_CAP=1` skips the wrapper entirely (rollback).
+ * The wrapper is implemented in `src/heap_cap.ts`.
+ */
+export const NODE_HEAP_MB = envNumber('CODEWIKI_NODE_HEAP_MB', 1536);
+export const DISABLE_HEAP_CAP = envBool('CODEWIKI_DISABLE_HEAP_CAP');
+
+/**
+ * Runtime heartbeat (v0.7):
+ * Pure-stderr metric line emitted every `HEARTBEAT_INTERVAL_MS` so
+ * post-mortem analysis of `-32000` disconnects has telemetry beyond
+ * "the process is gone". Carries rssMb, uptimeSec, inFlightToolCount.
+ * `CODEWIKI_DISABLE_HEARTBEAT=1` kills the loop entirely.
+ */
+export const HEARTBEAT_INTERVAL_MS = envNumber('CODEWIKI_HEARTBEAT_INTERVAL_MS', 30_000);
+export const DISABLE_HEARTBEAT = envBool('CODEWIKI_DISABLE_HEARTBEAT');

@@ -206,8 +206,8 @@ The first time `find_chunks` or `find_neighbors` touches a repo, the indexer run
    └───────────────────────────────────────────────────────────────┘
           │
           ▼
-   `request_indexing` lets the agent pre-warm a repo so the first real
-   query never races the indexer's 5-second deadline.
+   `get_page({ repo, prepareOnly: true })` lets the agent pre-warm a repo so
+   the first real query never races the indexer's 5-second deadline.
 ```
 
 ### 3. Query — answer the question
@@ -306,7 +306,7 @@ See the diagram above. The thing to know is that **five scores** come back with 
 
 ```
    resolve_repo({ query: "react" })                              → { owner: "facebook", repo: "react" }
-   request_indexing({ repo: "facebook/react" })                  → { status: "ready" | "index_building" }
+   get_page({ repo: "facebook/react", prepareOnly: true })       → { status: "ready" | "index_building" }
    find_chunks({ query: "rules of hooks", repo: "facebook/react" })
                                                                  → ranked chunks with citations
 ```
@@ -327,19 +327,42 @@ Five stored edge kinds plus a query-time-derived `dep_link`:
 
 With the optional `query` parameter, neighbors are re-ranked by semantic similarity — the embedder is reused, no separate model.
 
-### 6. `request_indexing` — pre-warm (the only non-readonly tool)
+### Pre-warming via `get_page({ prepareOnly: true })` (v0.7)
 
-A polite "please build the index for this repo now so my next call doesn't pay the cold start." Useful when the agent has decided it will explore a library before the user actually asks anything about it.
+`find_chunks` auto-indexes the target repo on first call — you usually do NOT need a separate pre-warm step. When a prior call returned `status: 'index_building'` and you need a guaranteed cache hit on the next request, use the `prepareOnly: true` branch of `get_page`. This is the **only non-readonly tool**: it performs an HTTP fetch + sqlite write subject to the CodeWiki 1 page / 4 s per-origin rate limit.
 
 ```
-   request_indexing({ owner, repo })
+   get_page({ repo: "owner/repo", prepareOnly: true })
         │
         ▼
-   Kick off Indexer.indexRepo() in background, return immediately
+   Kick off Indexer.indexRepo() in background (single-flight + TTL)
         │
         ▼
    Next find_chunks for that repo → warm index, no race, instant
 ```
+
+### Resource governance (v0.7)
+
+The bin entry self-execs once at startup with `--max-old-space-size=1536` when the flag is absent in `process.execArgv`. On 7.5 GB / 2 GB-swap hosts this stops the Linux OOM-killer from SIGKILL'ing the server child under repeated `find_chunks` load. The wrapper inherits stdio so the MCP JSON-RPC transport is unaffected; the wrapper PID exits immediately when the child exits.
+
+Operator escape hatches:
+
+| Env var | Default | Effect |
+|---------|---------|--------|
+| `CODEWIKI_NODE_HEAP_MB` | `1536` | Override the heap cap (in megabytes). |
+| `CODEWIKI_DISABLE_HEAP_CAP` | unset | Set to `1` to skip the wrapper entirely (rollback path). |
+| `CODEWIKI_DISABLE_HEARTBEAT` | unset | Set to `1` to disable the 30 s `runtime_heartbeat` stderr metric. |
+| `CODEWIKI_HEARTBEAT_INTERVAL_MS` | `30000` | Override the heartbeat interval (milliseconds). |
+
+The heartbeat metric line looks like:
+
+```json
+{"time":"...","level":"metric","msg":"runtime_heartbeat","value":1,"rssMb":188,"uptimeSec":127,"inFlightToolCount":0}
+```
+
+`inFlightToolCount` is incremented in `withMetrics` at handler entry and decremented in `finally` so throwing handlers cannot leak the count.
+
+**Cross-platform graceful shutdown.** On Linux/macOS the wrapper forwards SIGTERM/SIGINT/SIGHUP via `child.kill(sig)` — the child's POSIX signal handlers run `closer()` (driver + cache + watcher teardown). On Windows there is no POSIX signal delivery, so the wrapper opens a 4th-stdio-fd IPC channel and sends `{ type: 'codewiki-shutdown', signal }`; the child's `process.on('message', ...)` listener runs the same `closer()`. 5 s grace window before force-kill. No platform-specific code anywhere else in the surface.
 
 ---
 
@@ -388,7 +411,7 @@ A polite "please build the index for this repo now so my next call doesn't pay t
 ```
    Agent's tools:
      resolve_repo("@tanstack/react-query")             → TanStack/query
-     request_indexing({ owner, repo })                 → pre-warm
+     get_page({ owner, repo, prepareOnly: true })      → pre-warm
      get_page({ owner, repo, listPages: true })        → 14 pages
      find_chunks({ query: "core concepts",             → 5 chunks
                    repo: "TanStack/query", k: 5 })
@@ -425,7 +448,7 @@ The agent assembles an architecture summary that names actual modules in the act
 
 ```
    for repo in [nextauthjs/next-auth, lucia-auth/lucia, vvo/iron-session]:
-       request_indexing({ owner, repo })
+       get_page({ owner, repo, prepareOnly: true })
    ─────────────────────────────────────────────────────────────
    ~12 seconds later, three indexes are warm in cache.db. Every
    subsequent find_chunks call returns in <50 ms, no cold starts.
@@ -619,7 +642,7 @@ When the very first run of `npx codewikitap` shows the MCP client reporting `-32
 
 2. Then restart codewikitap. Subsequent runs use the on-disk binary and reach `transport.connect()` within milliseconds.
 
-3. If the install fails and you need the server to come up immediately with browser-using tools degraded, set `CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS=5000`. The MCP handshake succeeds and browser tools (`get_page`, `find_chunks` cache-miss, `find_neighbors` cache-miss, `request_indexing`) return a structured `rate_limited` retry envelope until the install completes. Non-browser tools (`list_project_dependencies`, `resolve_repo`) work unaffected.
+3. If the install fails and you need the server to come up immediately with browser-using tools degraded, set `CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS=5000`. The MCP handshake succeeds and browser tools (`get_page` — including the `prepareOnly` path — `find_chunks` cache-miss, `find_neighbors` cache-miss) return a structured `rate_limited` retry envelope until the install completes. Non-browser tools (`list_project_dependencies`, `resolve_repo`) work unaffected.
 
 ---
 

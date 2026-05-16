@@ -133,7 +133,7 @@ async function callNeighborsRaceSafe(
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   // Bounded polling loop with 50ms backoff (mirrors v2.5 kg_semantic audit
-  // helper). With beforeEach pre-warming via request_indexing this rarely
+  // helper). With beforeEach pre-warming via get_page({prepareOnly:true}) this rarely
   // triggers, but loaded CI workers can race the indexer's single-flight
   // window — a single re-call was insufficient. 5 attempts total.
   for (let i = 0; i < 5; i++) {
@@ -241,7 +241,7 @@ describe('AUDIT_TS_028: find_neighbors returns >=1 neighbor for all 4 query kind
   beforeEach(async () => {
     h = await setupServerWithFullEdgeTypesFixture();
     // Warm indexer so all stored edge types are populated before queries.
-    await h.mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+    await h.mcpClient.callTool({ name: 'get_page', arguments: { repo: 'audit/fixture', prepareOnly: true } });
   });
   afterEach(async () => { await teardown(h); });
 

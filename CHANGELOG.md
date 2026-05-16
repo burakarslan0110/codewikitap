@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-16
+
+### BREAKING
+
+- **`request_indexing` tool removed.** Its behavior is now reachable via `get_page({ repo, prepareOnly: true })` — same envelope shape (`{ status: 'ready' | 'index_building' | 'no_docs' | 'rate_limited' | 'retry', chunkCount?, edgeCount?, fallbacks?, retryAfterSeconds?, reason? }`), same sync race against `INDEX_BUILD_TIMEOUT_MS`, same single-flight + TTL idempotency. Agents migrating need one client-config edit: change the tool name and add the `prepareOnly: true` argument. The advertised tool surface is now exactly **5 names** (`list_project_dependencies`, `resolve_repo`, `get_page`, `find_chunks`, `find_neighbors`).
+- **`get_page` annotations flip to `readOnlyHint: false`.** The `prepareOnly: true` branch performs an HTTP fetch + sqlite write, so the tool is no longer read-only. `idempotentHint: true` remains thanks to the Indexer's single-flight + TTL contract.
+
+### Changed
+
+- **Default Node old-space heap capped at 1.5 GB via self-reexec.** The bin entry now checks `process.execArgv` at startup and, when `--max-old-space-size` is absent, re-execs itself with `--max-old-space-size=1536`. This stops the Linux OOM-killer from SIGKILL'ing the server child on 7.5 GB / 2 GB-swap hosts under repeated `find_chunks` load (5 SIGKILL events / 15 min observed in v0.6.1 test harness). Wrapper PID exits immediately when the child exits — two PIDs are transient. Operator escape hatches:
+  - `CODEWIKI_NODE_HEAP_MB=<n>` — override the default cap.
+  - `CODEWIKI_DISABLE_HEAP_CAP=1` — skip the wrapper entirely (full rollback).
+  - The wrapper also sets a `CODEWIKI_HEAP_CAP_APPLIED=1` sentinel env var on the child as a fork-bomb guard against launchers that sanitize `execArgv` between wrapper and child.
+- **`SERVER_INSTRUCTIONS` rewritten as a decision table.** The narrative paragraph that used to mention every tool has been replaced with a `When → Tool` table that names `find_chunks` as the first-resort retrieval tool and explicitly demotes `prepareOnly` to "only when find_chunks's automatic indexing isn't fast enough." `Indexer.__test_seedRecentBuildMs` (a test-only method on a production class) replaced with a constructor-injected `seedRecentBuildMs?: readonly number[]` option.
+
+### Added
+
+- **`runtime_heartbeat` metric** — emitted on stderr every 30 seconds carrying `rssMb`, `uptimeSec`, and `inFlightToolCount`. Post-mortem analysis of `-32000` disconnects now has telemetry beyond "the process is gone." Kill switch: `CODEWIKI_DISABLE_HEARTBEAT=1`. Tunable interval: `CODEWIKI_HEARTBEAT_INTERVAL_MS` (default 30000). Uses `setInterval(...).unref()` so the loop never holds the event loop alive past shutdown.
+- **Windows graceful-shutdown bridge.** Windows lacks POSIX signal delivery — `child.kill('SIGTERM')` from the heap-cap wrapper is abrupt and the child's `process.on('SIGTERM', closer)` handler never runs. The wrapper now opens a 4th-stdio-fd IPC channel when `process.platform === 'win32'` and sends `{ type: 'codewiki-shutdown', signal }`; the child has a `process.on('message', ...)` listener that runs the same `closer()` path (cache + driver + watcher tear-down). 5 s grace window before force-kill. POSIX hosts are unchanged — direct `child.kill(sig)` is graceful and faster. SIGHUP is now only registered on POSIX (Windows has no SIGHUP).
+- **Per-PID RSS measurement variant for TS-007** — `tests/integration/perf_spawned.integration.test.ts` spawns the real `dist/index.js` and reads `/proc/<child.pid>/status:VmRSS` directly, closing the InMemoryTransport variant's "test-runner RSS contamination" gap (Linux-only; macOS/Windows fall back to the cross-platform InMemoryTransport variant). The spawned child uses three env-gated test seams (below) to short-circuit Playwright / embedder / reranker model loads.
+- **Test-mode env seams** (production code clearly env-gated; documented as test-only):
+  - `CODEWIKI_TEST_FIXTURE_DIR=<path>` — `CodeWikiClient.defaultFetchPage` reads `<path>/<repo-with-slashes-as-double-underscore>.json` (an `ExtractionResult` JSON) instead of using Playwright. Used by the spawned-child perf harness.
+  - `CODEWIKI_TEST_STUB_EMBEDDER=1` — `Embedder.resolveEncoder` returns a stub that emits deterministic L2-normalized unit vectors without loading `@xenova/transformers`.
+  - `CODEWIKI_TEST_STUB_RERANKER=1` — `Reranker.resolveScorer` returns a stub that emits monotonic decreasing scores without loading the cross-encoder model.
+- **`get_page` mutex validation** — calling with `prepareOnly: true` AND `listPages: true` now throws (MCP SDK translates to `isError: true` with a clear message). Earlier code silently preferred prepareOnly over listPages, which hid agent bugs.
+- **`runtime.execArgv` info log** — emitted once at `server-ready` so the active heap cap is visible in `server.log` for forensics.
+- **In-repo perf integration harness** — `tests/integration/perf.integration.test.ts` exercises TS-006 (50× concurrent `find_chunks`), TS-007 (10× cache reset+rebuild RSS-stable), and TS-008 (mixed 100-call workload at concurrency=8). Stress latency assertions skipped on CI (`it.skipIf(CI)`); correctness portions always run. Run locally with `pnpm run test:perf` before tagging a release.
+- **`test:perf` npm script** alongside `test`, `test:integration`, `test:all`, `audit`.
+
+### Fixed
+
+- **OOM-killer disconnect cycle.** v0.6.1 was observed taking 5 SIGKILL events on a 7.5 GB / 2 GB-swap host within a 15-minute test run; the heap cap (above) plus the existing `quantized: true` loads for the embedder + reranker keep RSS comfortably under the cap. The disconnect symptom (`-32000` reconnect loop) is fully eliminated in this configuration.
+
+### Eval baseline (`pnpm run eval` on synthetic gold set)
+
+- **find_chunks** recall@8 = 1.000, NDCG@8 = 0.844 (v2.5 baselines: recall@8 ≥ 0.850, NDCG@8 ≥ 0.700 — both clearly above)
+- **find_neighbors graph correctness** = 1.000 (threshold 1.0)
+- **find_neighbors semantic-rank** ordering = 0.800 (baseline floor 0.780), NDCG@8 = 0.831 (baseline floor 0.811)
+- No regression vs v0.6.1 hybrid eval baselines.
+
 ## [0.6.1] - 2026-05-15
 
 ### Fixed

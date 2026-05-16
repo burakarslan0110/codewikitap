@@ -54,6 +54,14 @@ export interface IndexerDeps {
   store: VectorStore;
   graphStore: GraphStore;
   cache: Cache;
+  /**
+   * v0.7: pre-seed the rolling-window of recent build durations (ms). Used by
+   * tests to make `estimateRemainingMs` deterministic without polluting the
+   * Indexer class with a `__test_*` method. Values beyond
+   * `ESTIMATE_WINDOW_SIZE` are clamped (oldest dropped, newest kept) to match
+   * the same invariant `runIndex()` enforces after each successful build.
+   */
+  seedRecentBuildMs?: readonly number[];
 }
 
 export interface IndexerBuildOptions {
@@ -81,7 +89,16 @@ export class Indexer {
   /** Rolling window of recent successful build durations for estimateRemainingMs. */
   private readonly recentBuildMs: number[] = [];
 
-  constructor(private readonly deps: IndexerDeps) {}
+  constructor(private readonly deps: IndexerDeps) {
+    // v0.7: apply optional seed for the rolling window. Same `slice(-N)`
+    // clamp that runIndex enforces after each successful build so injection
+    // can never put the rolling window over the documented size.
+    if (deps.seedRecentBuildMs && deps.seedRecentBuildMs.length > 0) {
+      for (const v of deps.seedRecentBuildMs.slice(-ESTIMATE_WINDOW_SIZE)) {
+        this.recentBuildMs.push(v);
+      }
+    }
+  }
 
   /**
    * Lazy index for a repo. Returns the in-flight promise on concurrent calls
@@ -106,8 +123,8 @@ export class Indexer {
    *
    * The Retriever surfaces `Math.ceil(estimateRemainingMs(...) / 1000)` as
    * `estimatedRemainingSeconds` on the `index_building` envelope so agents
-   * can choose between waiting vs calling `request_indexing` for a future
-   * cache hit.
+   * can choose between waiting vs calling `get_page({ prepareOnly: true })`
+   * for a future cache hit.
    */
   estimateRemainingMs(elapsedMs: number): number {
     // Defensive clamp: negative elapsedMs (clock skew, mocked timers in tests)
@@ -117,12 +134,6 @@ export class Indexer {
       ? ESTIMATE_COLD_DEFAULT_MS
       : this.recentBuildMs.reduce((a, b) => a + b, 0) / this.recentBuildMs.length;
     return Math.max(0, Math.round(avg - e));
-  }
-
-  /** Test seam — pre-seed recent build durations. */
-  __test_seedRecentBuildMs(values: number[]): void {
-    this.recentBuildMs.length = 0;
-    for (const v of values.slice(-ESTIMATE_WINDOW_SIZE)) this.recentBuildMs.push(v);
   }
 
   private async runIndex(repo: string, optsIn: IndexerBuildOptions): Promise<IndexerResult> {

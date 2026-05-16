@@ -90,7 +90,8 @@ const outputSchema = z.object({
   retryAfterSeconds: z.number().optional(),
   /**
    * Only set when `status === 'index_building'`. Coarse rolling-avg estimate;
-   * agent can choose to wait + retry vs `request_indexing` for a future cache hit.
+   * agent can choose to wait + retry, or call `get_page({ repo, prepareOnly: true })`
+   * for a guaranteed cache hit on a future call.
    */
   estimatedRemainingSeconds: z.number().int().nonnegative().optional(),
   reason: z.string().optional(),
@@ -106,7 +107,7 @@ export function registerFindChunks(server: McpServer, deps: FindChunksToolDeps):
     {
       title: 'Semantic retrieval over CodeWiki documentation',
       description:
-        'Hybrid semantic+BM25 retrieval over CodeWiki pages. Returns ranked chunks with anchored citations. Pass `repo` to scope; omit to query already-indexed repos (off-project — use after resolve_repo + request_indexing to ask about any GitHub repo). Always surface citation.sourceUrl.',
+        'Hybrid semantic+BM25 retrieval over CodeWiki pages. Returns ranked chunks with anchored citations. Pass `repo` to scope; omit to query already-indexed repos. find_chunks auto-indexes the repo on first call — do NOT pre-warm unless a prior call returned status:index_building. Always surface citation.sourceUrl.',
       inputSchema: inputSchema.shape,
       outputSchema: outputSchema.shape,
       annotations: { readOnlyHint: true, idempotentHint: true },

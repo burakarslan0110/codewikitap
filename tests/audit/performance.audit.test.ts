@@ -191,14 +191,20 @@ describe('AUDIT_TS_012: Indexer build <= 8s (small fixture)', () => {
   beforeEach(setupServer);
   afterEach(teardownServer);
 
-  it('request_indexing happy path completes inside budget', async () => {
+  it('get_page({prepareOnly:true}) happy path completes inside budget', async () => {
     const t0 = Date.now();
-    let r = await mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+    let r = await mcpClient.callTool({
+      name: 'get_page',
+      arguments: { repo: 'audit/fixture', prepareOnly: true },
+    });
     let s = (r.structuredContent as Record<string, unknown>) ?? {};
     if (s.status === 'index_building') {
       // Wait for in-flight to settle, then call again.
       await new Promise((res) => setTimeout(res, 1_000));
-      r = await mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+      r = await mcpClient.callTool({
+        name: 'get_page',
+        arguments: { repo: 'audit/fixture', prepareOnly: true },
+      });
       s = (r.structuredContent as Record<string, unknown>) ?? {};
     }
     expect(s.status).toBe('ready');
@@ -210,10 +216,13 @@ describe('AUDIT_TS_013: Single-flight collapses concurrent indexRepo to 1 fetch'
   beforeEach(setupServer);
   afterEach(teardownServer);
 
-  it('5 concurrent request_indexing calls -> exactly 1 fetchPage invocation', async () => {
+  it('5 concurrent get_page({prepareOnly:true}) calls -> exactly 1 fetchPage invocation', async () => {
     fetchPageCount = 0;
     const concurrent = await Promise.all(
-      [1, 2, 3, 4, 5].map(() => mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } })),
+      [1, 2, 3, 4, 5].map(() => mcpClient.callTool({
+        name: 'get_page',
+        arguments: { repo: 'audit/fixture', prepareOnly: true },
+      })),
     );
     expect(concurrent.length).toBe(5);
     expect(fetchPageCount).toBe(1);

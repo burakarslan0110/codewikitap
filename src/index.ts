@@ -19,13 +19,19 @@ import { getPlaywrightDriver } from './adapters/playwright_driver.js';
 import { installStdoutTripwire } from './adapters/stdout_guard.js';
 import { getLogger, type Logger } from './logging.js';
 import { assertNodeVersion } from './runtime_check.js';
+import { shouldReexecForHeapCap, reexecWithHeapCap, isHeapCapShutdownMessage } from './heap_cap.js';
 import { detectRuntimeCapabilities } from './runtime_capabilities.js';
 import {
   LOG_DIR,
   DISABLE_MODEL_WARMUP,
   STDOUT_TRIPWIRE,
   PLAYWRIGHT_INSTALL_TIMEOUT_MS,
+  NODE_HEAP_MB,
+  HEARTBEAT_INTERVAL_MS,
+  DISABLE_HEARTBEAT,
 } from './config.js';
+import { startHeartbeat, type HeartbeatHandle } from './services/heartbeat.js';
+import { getInFlightCount } from './tools/withMetrics.js';
 import { Cache } from './services/cache.js';
 import { VectorStore } from './services/vector_store.js';
 import { EMBED_MODEL, EMBED_MODEL_DIM, LEGACY_EMBED_MODEL_DEFAULT } from './config_rag.js';
@@ -323,6 +329,25 @@ async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await built.server.connect(transport);
   log.info('server-ready', { tools: built.toolNames });
+  // v0.7: emit the active Node execArgv so the heap-cap integration test
+  // (and post-mortem forensics) can verify the wrapper landed the flag.
+  // This is purely informational — no production code branches on it.
+  log.info('runtime.execArgv', { execArgv: process.execArgv });
+
+  // v0.7: start the runtime heartbeat AFTER the handshake is advertised.
+  // The interval uses setInterval(...).unref() so it never holds the event
+  // loop alive past shutdown. closer() stops the handle before cache close.
+  let heartbeatHandle: HeartbeatHandle | null = null;
+  if (!DISABLE_HEARTBEAT) {
+    heartbeatHandle = startHeartbeat({
+      log,
+      getInFlightCount,
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+    });
+    log.info('heartbeat_started', { intervalMs: HEARTBEAT_INTERVAL_MS });
+  } else {
+    log.info('heartbeat_disabled');
+  }
 
   // RC1 defense L3: kick off model warmup in background AFTER the handshake
   // has been advertised. The wrap that used to corrupt JSON-RPC frames is
@@ -408,6 +433,10 @@ async function main(): Promise<void> {
   const closer = async (signal: string): Promise<void> => {
     log.info('shutting-down', { signal });
     try {
+      // v0.7: stop the heartbeat BEFORE cache close so a tick mid-shutdown
+      // doesn't reference a closed SQLite handle (the metric itself doesn't
+      // touch the cache, but a future-extender might add cache.stats()).
+      if (heartbeatHandle) heartbeatHandle.stop();
       if (watcher) await watcher.stop();
       await driver.close();
       built.cache.close();
@@ -417,6 +446,22 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', () => { void closer('SIGINT'); });
   process.on('SIGTERM', () => { void closer('SIGTERM'); });
+
+  // v0.7: Windows graceful-shutdown bridge. On Windows the heap-cap wrapper
+  // spawns the child with an IPC channel (4th stdio fd) instead of relying
+  // on `child.kill('SIGTERM')` — Windows has no POSIX signal delivery, so a
+  // signal kill would be abrupt and `closer()` above would never run. The
+  // wrapper sends `{ type: 'codewiki-shutdown', signal }` on the IPC channel;
+  // we forward to the same `closer()` path. `process.send` is only set when
+  // the parent opened an IPC channel — on POSIX-spawned children it is
+  // undefined and this listener is a no-op.
+  if (typeof process.send === 'function') {
+    process.on('message', (msg: unknown) => {
+      if (isHeapCapShutdownMessage(msg)) {
+        void closer(`ipc:${msg.signal}`);
+      }
+    });
+  }
 }
 
 // Only run main() when this file is invoked as the bin entry — never as
@@ -457,9 +502,34 @@ if (isBinEntry()) {
       process.exit(1);
     });
   } else {
-    main().catch((err) => {
-      process.stderr.write(`Fatal: ${err instanceof Error ? err.stack : String(err)}\n`);
-      process.exit(1);
+    // v0.7: Heap-cap self-reexec. On 7.5 GB / 2 GB-swap hosts the Linux
+    // OOM-killer was SIGKILL'ing the server child under repeated find_chunks
+    // load. The wrapper re-execs `node --max-old-space-size=<NODE_HEAP_MB>
+    // <argv>` once, threading a sentinel env (CODEWIKI_HEAP_CAP_APPLIED=1)
+    // through to the child as the fork-bomb guard. Three escape hatches
+    // (sentinel / DISABLE_HEAP_CAP / pre-existing --max-old-space-size)
+    // skip re-exec. See src/heap_cap.ts for the precedence rationale.
+    const heapCapDecision = shouldReexecForHeapCap({
+      env: process.env,
+      execArgv: process.execArgv,
     });
+    if (heapCapDecision.reexec) {
+      // Wrapper process: re-exec the bin entry with the heap cap prepended,
+      // inherit stdio, forward signals, exit with the child's code. Calls
+      // process.exit() inside its child.on('exit') handler — code after
+      // reexecWithHeapCap is unreachable in the wrapper.
+      reexecWithHeapCap({
+        execPath: process.execPath,
+        execArgv: process.execArgv,
+        argv: process.argv,
+        env: process.env,
+        heapMb: NODE_HEAP_MB,
+      });
+    } else {
+      main().catch((err) => {
+        process.stderr.write(`Fatal: ${err instanceof Error ? err.stack : String(err)}\n`);
+        process.exit(1);
+      });
+    }
   }
 }

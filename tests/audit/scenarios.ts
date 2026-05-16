@@ -33,7 +33,7 @@ export const AUDIT_SCENARIOS = {
   AUDIT_TS_005: 'get_page happy + degraded paths',
   AUDIT_TS_006: 'find_chunks happy + degraded paths',
   AUDIT_TS_007: 'find_neighbors happy + degraded paths',
-  AUDIT_TS_008: 'request_indexing happy + degraded paths',
+  AUDIT_TS_008: 'get_page({prepareOnly:true}) happy + degraded paths',
   AUDIT_TS_009: 'Cold-start <= 15s (process start to first tools/list response)',
   AUDIT_TS_010: 'find_chunks warm P95 <= 2s (mocked deps, hybrid path)',
   AUDIT_TS_011: 'get_page warm P95 <= 1s (cache hit)',

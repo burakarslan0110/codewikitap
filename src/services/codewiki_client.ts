@@ -59,7 +59,7 @@ export type NoDocsResult = { status: 'no_docs'; fallbacks: Fallback[] };
  * Distinct from `no_docs`: surfaced by the probe-existence path (probe(),
  * listPages()) when CodeWiki has no wiki for the repo at all. Shape is kept
  * deliberately lean — callers that want fallback URLs derive them from the
- * repo string themselves (GitHub README, request_indexing).
+ * repo string themselves (GitHub README, CodeWiki indexing page).
  */
 export type NoWikiResult = { status: 'no_wiki' };
 export type RateLimitedResult = { status: 'rate_limited'; retryAfterSeconds: number };
@@ -285,6 +285,27 @@ export class CodeWikiClient {
   }
 
   private async defaultFetchPage(repo: string): Promise<ExtractionResult> {
+    // v0.7 test-mode seam: `CODEWIKI_TEST_FIXTURE_DIR=/path` short-circuits
+    // the Playwright fetch and reads `<dir>/<repo-with-slashes-as-double-
+    // underscore>.json` (an ExtractionResult JSON). Production code never
+    // sets this env; it exists ONLY for the spawned-child perf harness in
+    // `tests/integration/perf_spawned.integration.test.ts`, which needs to
+    // exercise the indexer end-to-end in a real `node dist/index.js` child
+    // without Playwright/network/embedder model load. Documented in CHANGELOG.
+    const testFixtureDir = process.env.CODEWIKI_TEST_FIXTURE_DIR;
+    if (testFixtureDir) {
+      const fs = await import('node:fs');
+      const path = await import('node:path');
+      const fixtureFile = path.join(testFixtureDir, `${repo.replace(/\//g, '__')}.json`);
+      try {
+        const raw = fs.readFileSync(fixtureFile, 'utf-8');
+        return JSON.parse(raw) as ExtractionResult;
+      } catch (err) {
+        // No fixture file → treat as not-found (matches Playwright "no docs" path).
+        const reason = err instanceof Error ? err.message : String(err);
+        throw new CodeWikiError('upstream_unavailable', `test fixture missing for ${repo} (${fixtureFile}): ${reason}`);
+      }
+    }
     await this.respectRateLimit();
     const url = `${CODEWIKI_BASE_URL}${repo}`;
     try {

@@ -237,12 +237,18 @@ describe('Indexer.estimateRemainingMs', () => {
     freshCache.close();
   });
 
-  it('rolling-avg over recent builds (test seam pre-seeds the window)', async () => {
+  it('rolling-avg over recent builds (constructor pre-seeds the window)', async () => {
     const freshDb = path.join(tmpDir, 'estim2.db');
     const freshCache = await Cache.open({ dbPath: freshDb });
     const freshStore = new VectorStore(freshCache);
-    const indexer = new Indexer({ client, embedder, store: freshStore, graphStore: new GraphStore(freshCache), cache: freshCache });
-    indexer.__test_seedRecentBuildMs([10000, 12000, 14000]); // avg = 12000
+    const indexer = new Indexer({
+      client,
+      embedder,
+      store: freshStore,
+      graphStore: new GraphStore(freshCache),
+      cache: freshCache,
+      seedRecentBuildMs: [10000, 12000, 14000], // avg = 12000
+    });
     expect(indexer.estimateRemainingMs(0)).toBe(12000);
     expect(indexer.estimateRemainingMs(7000)).toBe(5000);
     expect(indexer.estimateRemainingMs(20000)).toBe(0);
@@ -253,9 +259,15 @@ describe('Indexer.estimateRemainingMs', () => {
     const freshDb = path.join(tmpDir, 'estim3.db');
     const freshCache = await Cache.open({ dbPath: freshDb });
     const freshStore = new VectorStore(freshCache);
-    const indexer = new Indexer({ client, embedder, store: freshStore, graphStore: new GraphStore(freshCache), cache: freshCache });
-    // Seed 12 values [100, 200, 300, ..., 1200]. Cap-at-10 keeps last 10: [300..1200], avg = 750.
-    indexer.__test_seedRecentBuildMs([100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]);
+    // Seed 12 values [100..1200]. Cap-at-10 keeps last 10: [300..1200], avg = 750.
+    const indexer = new Indexer({
+      client,
+      embedder,
+      store: freshStore,
+      graphStore: new GraphStore(freshCache),
+      cache: freshCache,
+      seedRecentBuildMs: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200],
+    });
     expect(indexer.estimateRemainingMs(0)).toBe(750);
     freshCache.close();
   });
@@ -264,8 +276,14 @@ describe('Indexer.estimateRemainingMs', () => {
     const freshDb = path.join(tmpDir, 'estim4.db');
     const freshCache = await Cache.open({ dbPath: freshDb });
     const freshStore = new VectorStore(freshCache);
-    const indexer = new Indexer({ client, embedder, store: freshStore, graphStore: new GraphStore(freshCache), cache: freshCache });
-    indexer.__test_seedRecentBuildMs([5000]);
+    const indexer = new Indexer({
+      client,
+      embedder,
+      store: freshStore,
+      graphStore: new GraphStore(freshCache),
+      cache: freshCache,
+      seedRecentBuildMs: [5000],
+    });
     // Negative elapsed (clock skew) clamps to 0 → remaining === avg.
     expect(indexer.estimateRemainingMs(-1000)).toBe(5000);
     expect(indexer.estimateRemainingMs(NaN)).toBe(5000);

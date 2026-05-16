@@ -232,8 +232,8 @@ describe('v2.4 — TS-007: Gradle settings.gradle subproject discovery via MCP',
   });
 });
 
-describe('v2.6 — TS-009: 7-tool surface lock (request_indexing added)', () => {
-  it('tools/list returns exactly the canonical v1+v2+v2.1+v2.6 tool set', async () => {
+describe('v0.7 — TS-009: 5-tool surface lock (request_indexing folded into get_page prepareOnly)', () => {
+  it('tools/list returns exactly the canonical v1+v2+v2.1+v0.7 merged tool set', async () => {
     const tmpProj = fs.mkdtempSync(path.join(os.tmpdir(), 'codewiki-v24-tools-'));
     fs.writeFileSync(path.join(tmpProj, 'package.json'), '{}');
     try {
@@ -246,7 +246,6 @@ describe('v2.6 — TS-009: 7-tool surface lock (request_indexing added)', () => 
           'find_neighbors',
           'get_page',
           'list_project_dependencies',
-          'request_indexing',
           'resolve_repo',
         ]);
       } finally {

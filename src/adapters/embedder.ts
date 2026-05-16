@@ -73,6 +73,26 @@ export class Embedder {
   /** Lazy-resolve the underlying encoder. */
   private async resolveEncoder(): Promise<EncoderImpl> {
     if (this.injectedEncoder) return this.injectedEncoder;
+    // v0.7 test-mode seam: `CODEWIKI_TEST_STUB_EMBEDDER=1` bypasses the real
+    // ~30 MB `@xenova/transformers` model load entirely; encode() returns
+    // deterministic L2-normalized unit vectors. Production code never sets
+    // this env; it exists ONLY for the spawned-child perf harness which
+    // needs a real `node dist/index.js` indexer loop without the model load
+    // dominating RSS measurements. Documented in CHANGELOG.
+    if (process.env.CODEWIKI_TEST_STUB_EMBEDDER === '1') {
+      const dim = this.modelDim;
+      const stub: EncoderImpl = {
+        async encode(texts: string[]): Promise<Float32Array[]> {
+          return texts.map(() => {
+            const v = new Float32Array(dim);
+            v[0] = 1; // L2-normalized along axis 0
+            return v;
+          });
+        },
+      };
+      this.encoderPromise = Promise.resolve(stub);
+      return this.encoderPromise;
+    }
     if (!this.encoderPromise) {
       this.encoderPromise = this.loadDefaultEncoder();
     }

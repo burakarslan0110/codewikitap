@@ -15,12 +15,31 @@
 
 import { getLogger } from '../logging.js';
 
+/**
+ * v0.7: module-level in-flight handler counter. Incremented on every
+ * `withMetrics` entry, decremented in `finally` so a throwing handler
+ * cannot leak the count. Read by `src/services/heartbeat.ts` to populate
+ * the `inFlightToolCount` field in the runtime_heartbeat metric.
+ */
+let inFlightCount = 0;
+
+/** v0.7: read the live in-flight handler count for the heartbeat helper. */
+export function getInFlightCount(): number {
+  return inFlightCount;
+}
+
+/** Test seam: reset the counter between unit tests. No production caller. */
+export function __test_resetInFlightCount(): void {
+  inFlightCount = 0;
+}
+
 export function withMetrics<TArgs, TResult>(
   toolName: string,
   handler: (args: TArgs) => Promise<TResult>,
 ): (args: TArgs) => Promise<TResult> {
   return async (args: TArgs): Promise<TResult> => {
     const start = process.hrtime.bigint();
+    inFlightCount += 1;
     try {
       const result = await handler(args);
       const durMs = Number((process.hrtime.bigint() - start) / 1_000_000n);
@@ -32,6 +51,8 @@ export function withMetrics<TArgs, TResult>(
       const durMs = Number((process.hrtime.bigint() - start) / 1_000_000n);
       getLogger().metric('tool_latency_ms', durMs, { tool: toolName, status: 'error' });
       throw err;
+    } finally {
+      inFlightCount -= 1;
     }
   };
 }

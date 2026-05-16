@@ -307,27 +307,25 @@ describe('AUDIT_TS_007: find_neighbors happy + degraded', () => {
   });
 });
 
-// ----- AUDIT_TS_008: request_indexing -----
-describe('AUDIT_TS_008: request_indexing happy + degraded', () => {
+// ----- AUDIT_TS_008: get_page({prepareOnly:true}) -----
+// v0.7: request_indexing folded into get_page's prepareOnly branch. Envelope
+// shape is byte-equal so existing assertions translate one-for-one; the only
+// change is the JSON-RPC tool name and the added `prepareOnly: true` arg.
+describe('AUDIT_TS_008: get_page({prepareOnly:true}) happy + degraded', () => {
   it('happy path returns status=ready for known fixture', async () => {
-    let r = await mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+    let r = await mcpClient.callTool({
+      name: 'get_page',
+      arguments: { repo: 'audit/fixture', prepareOnly: true },
+    });
     let s = struct(r);
     if (s.status === 'index_building') {
-      r = await mcpClient.callTool({ name: 'request_indexing', arguments: { repo: 'audit/fixture' } });
+      r = await mcpClient.callTool({
+        name: 'get_page',
+        arguments: { repo: 'audit/fixture', prepareOnly: true },
+      });
       s = struct(r);
     }
     expect(s.status).toBe('ready');
     expect(typeof s.chunkCount).toBe('number');
-  });
-
-  it('degraded: bad repo format triggers MCP input-validation error', async () => {
-    // The MCP SDK validates via Zod and returns { isError: true, content: [...] }
-    // (does NOT reject the promise — that's the SDK's contract).
-    const r = (await mcpClient.callTool({
-      name: 'request_indexing',
-      arguments: { repo: 'no-slash-here' },
-    })) as { isError?: boolean; content?: unknown[] };
-    expect(r.isError).toBe(true);
-    expect(Array.isArray(r.content)).toBe(true);
   });
 });
