@@ -38,7 +38,10 @@
     "verify-publish": "node scripts/verify-publish.mjs",
     "postinstall": "node scripts/postinstall.mjs",
     "prepack": "node scripts/sync-marketplace-version.mjs",
-    "prepublishOnly": "node ./node_modules/typescript/bin/tsc"
+    "prepublishOnly": "node ./node_modules/typescript/bin/tsc",
+    "docs:dev": "node ./node_modules/vitepress/bin/vitepress.js dev docs",
+    "docs:build": "node ./node_modules/vitepress/bin/vitepress.js build docs",
+    "docs:preview": "node ./node_modules/vitepress/bin/vitepress.js preview docs"
   },
   "keywords": [
     "mcp",
@@ -103,6 +106,7 @@
     "eslint": "^9.16.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
+    "vitepress": "^1.5.0",
     "vitest": "^2.1.0"
   },
   "pnpm": {

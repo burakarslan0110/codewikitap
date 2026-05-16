@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/codewikitap"><img src="https://img.shields.io/npm/v/codewikitap?color=1D4ED8&label=npm" alt="npm"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1D4ED8.svg" alt="MIT"/></a>
-  <a href=".nvmrc"><img src="https://img.shields.io/badge/node-20.x-339933?logo=node.js&logoColor=white" alt="Node"/></a>
+  <img src="https://img.shields.io/badge/node-%E2%89%A522.5-339933?logo=node.js&logoColor=white" alt="Node ≥22.5"/>
   <a href="https://github.com/burakarslan0110/codewikitap-mcp/actions"><img src="https://github.com/burakarslan0110/codewikitap-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <img src="https://img.shields.io/badge/status-unofficial-orange" alt="Unofficial"/>
 </p>
@@ -20,654 +20,98 @@
   <a href="README.md">🇬🇧 English</a> · 🇹🇷 <strong>Türkçe</strong>
 </p>
 
+<p align="center">
+  📚 <strong><a href="https://burakarslan0110.github.io/codewikitap-mcp/tr/">Tam dokümantasyon</a></strong> — kavramlar, mimari, 5 araç, yapılandırma referansı, sorun giderme.
+</p>
+
 ```bash
 npx codewikitap install
 ```
 
 ---
 
-## İçindekiler
+## Ne işe yarar?
 
-1. [Google CodeWiki nedir?](#google-codewiki-nedir)
-2. [CodeWikiTap nedir?](#codewikitap-nedir)
-3. [Neden RAG-powered? Doc'u doğrudan vermek varken neden?](#neden-rag-powered)
-4. [Kaputun altında neler dönüyor?](#kaputun-altinda)
-5. [Yedi tool](#yedi-tool)
-6. [Gerçek senaryolar](#gercek-senaryolar)
-7. [Hangi agent için nasıl kurulur](#kurulum)
-8. [Desteklenen proje türleri](#desteklenen-projeler)
-9. [Yapılandırma](#yapilandirma)
-10. [Bilinmesi gerekenler](#bilinmesi-gerekenler)
-11. [Ne değildir](#ne-degildir)
-12. [Yol haritası, katkı, lisans](#yol-haritasi)
-
----
-
-<a id="google-codewiki-nedir"></a>
-## Google CodeWiki nedir?
-
-[**Google CodeWiki**](https://codewiki.google), Google'ın bir araştırma projesi: gezegendeki her public GitHub deposu için derinlikli, yapılandırılmış bir teknik wiki üretiyor. Arka planda tamamen Gemini çalışıyor — her sayfa kaynak ağacından sentezleniyor, her pull-request birleşmesinde yeniden üretiliyor ve belirli bir commit SHA'sına sabitleniyor; yani dokümantasyon koddan asla "kaymıyor".
-
-CodeWiki sayfasında bulduğun şey, sıradan bir API tablosundan ibaret değil:
-
-- **Modül seviyesinde anlatım** — sana onboarding yapan kıdemli bir mühendis gibi: modül ne işe yarar, sistemde nasıl konumlanır, nelere bağlıdır.
-- **Mimari diyagramlar** (Mermaid) — büyük sistemler için, gerçek call-graph'tan otomatik üretilmiş.
-- **Cross-reference'lar** — kaynak dosyalar, type'lar ve diğer depolar arasında.
-- **Citation footer** — her sayfanın altında, açıklamanın türetildiği commit ve dosyaya doğrudan link.
-
-Dikkat edilecek iki şey var:
-
-1. **Yalnız public GitHub.** Private repo erişimi waitlist'teki bir Gemini extension'ının arkasında; CodeWikiTap bu kısıtı aşmıyor.
-2. **AI-generated içerik.** Gemini iyi ama yanılmaz değil. Her sayfa kaynağına link veriyor — doğruluk kritikse oraya bakmak lazım.
-
-> ⚠️ **CodeWikiTap Google ile bağlantılı değildir.** CodeWiki adı yalnızca veri kaynağı olarak betimleyici şekilde geçer. Bu, bağımsız bir open-source projedir; içerikte ne Google'a ait bir parça vardır ne de Google'ın onayı/desteği söz konusudur.
-
----
-
-<a id="codewikitap-nedir"></a>
-## CodeWikiTap nedir?
-
-CodeWikiTap, makinende lokal çalışan küçük bir Node/TypeScript programı — bir **Model Context Protocol (MCP) server**. Kodlama agent'ın (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, …) ona stdio üzerinden konuşur. Kilitli bir **altı tool**'luk yüzey sunar — beş read-only, bir pre-warm — ve agent ihtiyacı olduğu anda CodeWiki içeriğini context'ine çekebilir.
-
-En kısa zihinsel model:
+Makinende lokal çalışan küçük bir Node programı — bir [**MCP server**](https://modelcontextprotocol.io). Kodlama agent'ın (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) onunla stdio üzerinden konuşur ve server **5 araç** sunar; agent ihtiyaç duyduğu anda [Google CodeWiki](https://codewiki.google) dokümantasyonunu context'ine çekebilir — heading sınırlarında parçalanmış, hybrid BM25 + vector + cross-encoder rerank ile skorlanmış, byte-equal citation footer ile damgalanmış olarak.
 
 ```
-       ┌────────────────────────┐
-       │   Kodlama agent'ın     │
-       │   bir soru sorar       │
-       └────────────┬───────────┘
-                    │  stdio (JSON-RPC)
-                    ▼
-       ┌────────────────────────┐
-       │      CodeWikiTap       │   ← lokal, API key yok, telemetri yok
-       │   (bu MCP server)      │
-       └────────────┬───────────┘
-                    │  hybrid retrieval, indekslenmiş CodeWiki sayfaları
-                    ▼
-       ┌────────────────────────┐
-       │   Google CodeWiki      │   ← upstream, yalnız public repo
-       │   (cache'li, SHA-pinli)│
-       └────────────────────────┘
+   ┌─────────────────┐  stdio    ┌──────────────────┐  hybrid retrieval   ┌────────────────┐
+   │ Kodlama agent'ı │ ────────► │   CodeWikiTap    │ ──────────────────► │ Google CodeWiki │
+   │ soru sorar      │           │  (lokal server)  │  cache'li, SHA-pinli│ (yalnız public) │
+   └─────────────────┘           └──────────────────┘                     └────────────────┘
+                                  API key yok · telemetri yok
 ```
 
-"Sadece CodeWiki'yi fetch'le" demek değil — üstüne şunları ekliyor:
+**Neden RAG, "doğrudan doc'u fetch'le" değil?** Tipik bir CodeWiki sayfası 2–4 k token; Next.js'in tek başına 18 sayfası var. Naif enjeksiyon, daha soruyu okumadan context bütçesini patlatır. CodeWikiTap her biri ~250 token'lık ~5 chunk döndürür — yaklaşık **40–80× daha küçük** ve daha yüksek recall ile (regression-locked: `NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80`).
 
-- **Project-awareness.** Açılışta manifest'ini (`package.json`, `pom.xml`, `Cargo.toml`, `go.mod`, …) tarar, *direct* dependency'lerini GitHub repolarına çözer, her birinde CodeWiki kapsamı olup olmadığını yoklar. Agent, daha ilk soruyu sormadan hangi kütüphanenin dokümantasyonu olduğunu bilir.
-- **Hybrid retrieval.** BM25 keyword search + dense vector search → Reciprocal Rank Fusion → cross-encoder rerank. Her chunk'a beş ayrı puan döndürülür; sıralama denetlenebilir, kara kutu değil.
-- **Knowledge graph.** Indexing sırasında aynı SQLite transaction'ında beş tipte edge çıkarılır. Agent "`src/auth.ts`'e hangi sayfalar atıf yapıyor?" veya "`AuthRouter` diagram node'una neler bağlı?" diye sorabilir.
-- **Citation zorunlu.** Her chunk ve her sayfa cevabı, source URL ile commit SHA'yı taşıyan byte-equal bir footer ile gelir. Footer test'lerle assert edilir; susturmanın yolu yok.
-- **Kilitli tool yüzeyi.** Server sekizinci bir tool kaydetmeyi reddeder. `/(search|ask|query|generate|index|write)/i` ile eşleşen isimler kod seviyesinde reddedilir — hiçbir plugin veya hook API'yi sessizce genişletemez.
-
----
-
-<a id="neden-rag-powered"></a>
-## Neden RAG-powered? Doc'u doğrudan vermek varken neden?
-
-Bir CodeWiki sayfası tipik olarak 2.000 – 4.000 token civarındadır. Gerçek bir kütüphanenin onlarcası vardır. Örneğin Next.js bu yazı yazılırken **18 sayfa**; React'in onlarcası var. Hepsini agent'ın context'ine doldurmaya kalkarsan, daha soruyu okumadan token bütçen biter.
-
-```
-NAİF YAKLAŞIM (RAG yok) — "agent'a her şeyi ver"
-
-   ┌─────────────────────────────────────────────────────────┐
-   │ vercel/next.js CodeWiki = 18 sayfa × ~3.000 tok ≈ 54k   │
-   │ facebook/react CodeWiki = 40+ sayfa × ~3.000 tok ≈ 120k │
-   │ prisma/prisma CodeWiki  = 25+ sayfa × ~3.000 tok ≈ 75k  │
-   │                              ...                         │
-   └─────────────────────────────────────────────────────────┘
-                              │
-                              ▼  prompt'a tıkıştırıldı
-              ✗ context patladı · ✗ cost fırladı · ✗ relevance gürültüde kayboldu
-
-
-RAG (CodeWikiTap'in yaptığı)
-
-   54k token Next.js doc'u
-          │
-          ▼  heading sınırlarında chunk'landı (canonical tree)
-   ~200 chunk × ~250 token
-          │
-          ▼  cache.db'ye bir kez indekslendi
-   BM25 (FTS5) ┐
-               ├──► RRF fusion ──► cross-encoder rerank
-   dense vec  ─┘                              │
-                                              ▼
-                          top-K chunk (~5 × ~250 tok ≈ 1,2k tok)
-                                              │
-                                              ▼
-                          agent'a citation ile teslim edildi
-              ✓ odaklı · ✓ ucuz · ✓ denetlenebilir · ✓ doğrulanabilir
-```
-
-**Neden hybrid (BM25 + vector), tek değil?**
-
-- BM25 tek başına paraphrase'leri kaçırır — "data fetching" sorgusu "remote data loading" başlığını yakalamaz.
-- Vector tek başına tam-eşleşmesi gereken sembolleri kaçırır — "`useEffect`" veya "`revalidateTag`" için keyword kesinliği şart.
-- Reciprocal Rank Fusion (RRF, k=60) ile birleştirildiğinde her iki yöntemin kör noktası baskın olmaz. Cross-encoder rerank sonradan top adaylar üzerinde tam-attention çalıştırıp her iki yöntemden artakalan sıralama hatalarını da düzeltir.
-
-Sonuçta agent'a giden context yükü naif enjeksiyona göre kabaca **40–80×** daha küçük, ölçülebilir biçimde daha yüksek recall ile (regression-locked floor'lar için: `tests/eval/baseline-v2.7-hybrid.json` → `NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80`).
-
----
-
-<a id="kaputun-altinda"></a>
-## Kaputun altında neler dönüyor?
-
-Üç şey, çoğu arka planda:
-
-### 1. Boot — bu proje neye bağımlı, bul
-
-```
-   npx codewikitap çalışır
-          │
-          ▼
-   cwd → $HOME arası yukarı yürür  (max 32 seviye, $HOME'u asla aşmaz)
-          │
-          ▼
-   Manifest'i öncelik sırasına göre yakala:
-     pom.xml › *.sln › *.csproj › Cargo.toml › composer.json
-       › go.work › go.mod › pyproject.toml › package.json › Gemfile.lock
-          │
-          ▼
-   Direct dep'leri parse et  +  workspace member'lar  +  BOM'lar  +  <parent> POM'lar
-   (untrusted-input hardening: lstat, 1 MB cap, NUL-byte reject, symlink follow yok)
-          │
-          ▼
-   Her dep → owner/repo  (cache 7 gün)
-          │
-          ▼
-   Her repo için CodeWiki kapsamı yokla  (cache 24h, SHA-anchored)
-          │
-          ▼
-   chokidar watcher: manifest + workspace member + aux file'lara abone
-   (sonradan gelen `pnpm add foo` server'ı restart'lamadan yakalanır)
-```
-
-### 2. Index — sayfaları aranabilir chunk'lara çevir (lazy)
-
-`find_chunks` veya `find_neighbors` bir repo'ya ilk değdiğinde, indexer o repo için **bir kez**, atomik şekilde çalışır:
-
-```
-   Repo'nun CodeWiki sayfa index'i
-          │
-          ▼
-   getPage(repo, slug)  her sayfa için  (Playwright → DOM → canonical tree)
-          │
-          ├──► chunker         — heading-section başına, sadece leaf değil
-          ├──► graph_extractor — aynı tree'den 5 edge tipi
-          └──► embedder        — bge-small-en-v1.5 ONNX, lazy-load
-          │
-          ▼
-   ┌───────────────────── SQLite transaction ─────────────────────┐
-   │  INSERT chunks        (text + sayfa metadata)                 │
-   │  INSERT vec_chunks    (sqlite-vec cosine virtual table)       │
-   │  INSERT fts_chunks    (FTS5 virtual table, v2.7)              │
-   │  INSERT kg_edges      (code_ref · diagram_edge · diagram_     │
-   │                        member · section_link · cross_repo_ref)│
-   │  UPDATE wiki_index_status                                     │
-   └───────────────────────────────────────────────────────────────┘
-          │
-          ▼
-   `get_page({ repo, prepareOnly: true })`, agent'a bir repo'yu önceden
-   indeksleme imkânı verir; böylece ilk gerçek sorgu indexer'ın 5 saniyelik
-   deadline'ı ile yarışmaz.
-```
-
-### 3. Query — soruya cevap üret
-
-```
-   Agent → find_chunks({ query: "...", repos: [...] })
-          │
-          ▼
-   Indexer.indexRepo() vs 5 sn deadline yarışı
-          │
-          ▼
-   ┌────────────┐      ┌────────────┐
-   │  BM25      │      │   Dense    │      ← paralel
-   │  FTS5      │      │ sqlite-vec │
-   └─────┬──────┘      └─────┬──────┘
-         └─── RRF fusion (k=60) ───┘
-                       │
-                       ▼
-            Top CODEWIKI_RERANK_TOP_N aday  (varsayılan 50)
-                       │
-                       ▼
-            Cross-encoder reranker  (ms-marco-MiniLM-L-6-v2)
-                       │
-                       ▼
-            Top-K chunk şu alanlarla:
-              { text, title, slug, citationUrl, commitSha,
-                vectorRank, vectorScore,
-                bm25Rank,   bm25Score,
-                rrfScore,   rerankScore }
-```
-
-Index 5 saniyede hazır değilse çağrı anında `status: 'index_building'` döner ve build arka planda sürer — bir sonraki çağrı warm index'e gelir.
-
----
-
-<a id="yedi-tool"></a>
-## Yedi tool
-
-Bunları sen çağırmazsın — agent çağırır. Liste bilerek kısa tutulmuş; her birinin ne yaptığını bilmek agent'ın muhakemesini okurken işe yarar.
-
-### 1. `list_project_dependencies` — temel
-
-Session başında, otomatik, bir kez çağrılır. Agent ilk düşüncesinden önce tam kapsam raporunu alır.
-
-```
-   Session başı
-        │
-        ▼
-   Manifest tara  ──►  Repo çöz  ──►  CodeWiki kapsamı yokla
-        │
-        ▼
-   [
-     { name: "next",       repo: "vercel/next.js",     hasCodeWiki: true,  pages: 18 },
-     { name: "react",      repo: "facebook/react",     hasCodeWiki: true,  pages: 42 },
-     { name: "tailwindcss",repo: "tailwindlabs/...",   hasCodeWiki: true,  pages:  9 },
-     { name: "@my-org/x",  repo: null,                 hasCodeWiki: false, pages:  0 },
-     ...
-   ]
-```
-
-### 2. `resolve_repo` — ad → `owner/repo`
-
-Agent slug'ı zaten biliyorsa atlanır. Kullanıcı "react'in dokümanına bak" dediğinde resolver `react` → `facebook/react` map'ini yapar.
-
-```
-   "react"  ─►  npm registry  ─►  repository.url  ─►  facebook/react
-   "lodash" ─►  npm           ─►  github.com/...  ─►  lodash/lodash
-   "rails"  ─►  RubyGems      ─►  source_code_uri ─►  rails/rails
-```
-
-### 3. `get_page` — bir sayfa, sub-section ya da içindekiler tablosu
-
-```
-   Input:  { owner, repo, slug?, subsection?, listPages? }
-        │
-        ├─ listPages: true ─► içindekiler dönüyor:
-        │                       [{ slug, title, level, parentSlug, hasDiagrams }, ...]
-        │
-        ▼
-   cache.db hit?
-        ├─ taze (≤ 24h)      ─►  hemen döndür
-        ├─ süresi geçmiş     ─►  SHA probe: aynı commit mi?
-        │                          ├─ evet ─► TTL'i yenile, cache'i döndür
-        │                          └─ hayır ─► sayfayı yeniden çek
-        └─ miss              ─►  Playwright → canonical tree → Markdown
-        │
-        ▼
-   Markdown + diagram'lar + kod + citation footer (byte-equal, assert'li)
-```
-
-### 4. `find_chunks` — esas iş yükü (hybrid RAG, proje-içi veya off-project)
-
-Yukarıdaki diyagrama bak. Bilmen gereken şey: her chunk ile beraber **beş puan** dönüyor — `vectorScore`, `bm25Score`, `rrfScore`, `rerankScore` + iki pre-fusion rank. Agent (veya sen) "bu chunk neden döndü?" diye merak ettiğinde cevap tamamen incelenebilir.
-
-**Off-project sorgu.** `repo` parametresini boş bırakırsan zaten indexlenmiş bütün repolarda arar. Henüz bağımlılığın olmayan bir repo'yu CodeWiki'ye sormak istersen 3 tool'u compose et:
-
-```
-   resolve_repo({ query: "react" })                              → { owner: "facebook", repo: "react" }
-   get_page({ repo: "facebook/react", prepareOnly: true })       → { status: "ready" | "index_building" }
-   find_chunks({ query: "rules of hooks", repo: "facebook/react" })
-                                                                 → citation'lı ranked chunks
-```
-
-### 5. `find_neighbors` — knowledge graph traversal
-
-Beş kayıtlı edge tipi + query-zamanı türetilen `dep_link`:
-
-```
-   code_ref         sayfa  ──refers──►  source file
-   diagram_edge     node   ──edge────►  node             (diagram içinde)
-   diagram_member   node   ──in──────►  diagram cluster
-   section_link     bölüm  ──anchor──►  bölüm            (aynı sayfa)
-   cross_repo_ref   sayfa  ──cites───►  dış repo
-   ──────────────────────────────────────────────────────────────────────
-   dep_link         proje  ──uses────►  indexed repo     (query-zamanı türetilir)
-```
-
-İsteğe bağlı `query` parametresi verildiğinde komşular semantik benzerliğe göre yeniden sıralanır — mevcut embedder kullanılır, ayrı model yok.
-
-### `get_page({ prepareOnly: true })` ile pre-warm (v0.7)
-
-`find_chunks` ilk çağrıda hedef repo'yu otomatik indeksler — genellikle ayrı bir pre-warm adımına ihtiyacın yok. Önceki bir çağrı `status: 'index_building'` döndürdüyse ve sıradaki sorgunun cache-hit olmasını garantilemek istiyorsan `get_page`'in `prepareOnly: true` branch'ini kullan. Bu **tek non-readonly tool**: HTTP fetch + sqlite write yapar, CodeWiki 1 sayfa / 4 sn origin başına rate-limit'ine tabidir.
-
-```
-   get_page({ repo: "owner/repo", prepareOnly: true })
-        │
-        ▼
-   Arka planda Indexer.indexRepo() başlat (single-flight + TTL)
-        │
-        ▼
-   O repo için bir sonraki find_chunks → warm index, yarış yok, anında
-```
-
-### Kaynak yönetimi (v0.7)
-
-Bin entry başlangıçta `process.execArgv` içinde `--max-old-space-size` yoksa kendini bir defaya mahsus `--max-old-space-size=1536` ile re-exec eder. 7.5 GB / 2 GB-swap host'larda bu, repeated `find_chunks` yükünde Linux OOM-killer'ın server child'ını SIGKILL'lemesini durdurur. Wrapper stdio'yu inherit eder, böylece MCP JSON-RPC transport'u etkilenmez; child çıkınca wrapper PID anında ölür.
-
-Operator escape hatches:
-
-| Env var | Varsayılan | Etki |
-|---------|-----------|------|
-| `CODEWIKI_NODE_HEAP_MB` | `1536` | Heap cap'i (MB) override et. |
-| `CODEWIKI_DISABLE_HEAP_CAP` | unset | `1` yaparsan wrapper tamamen atlanır (rollback). |
-| `CODEWIKI_DISABLE_HEARTBEAT` | unset | `1` yaparsan 30 sn'lik `runtime_heartbeat` stderr metric'i kapanır. |
-| `CODEWIKI_HEARTBEAT_INTERVAL_MS` | `30000` | Heartbeat aralığını (ms) override et. |
-
-Heartbeat metric line örneği:
-
-```json
-{"time":"...","level":"metric","msg":"runtime_heartbeat","value":1,"rssMb":188,"uptimeSec":127,"inFlightToolCount":0}
-```
-
-`inFlightToolCount` withMetrics handler entry'sinde artar, `finally` blok'unda azalır — fırlatan handler'lar sayacı leak etmez.
-
-**Cross-platform graceful shutdown.** Linux/macOS'ta wrapper SIGTERM/SIGINT/SIGHUP'ı `child.kill(sig)` ile forward eder — child'ın POSIX sinyal handler'ları `closer()` (driver + cache + watcher kapanışı) çalıştırır. Windows'ta POSIX sinyal teslimi olmadığı için wrapper 4. stdio fd üzerinde IPC channel açar ve `{ type: 'codewiki-shutdown', signal }` mesajı gönderir; child'ın `process.on('message', ...)` listener'ı aynı `closer()` yolunu çalıştırır. 5 sn grace, sonra force-kill. Yüzeyin başka hiçbir yerinde platform-spesifik kod yok.
-
----
-
-<a id="gercek-senaryolar"></a>
-## Gerçek senaryolar
-
-### Senaryo 1 — Next.js cache muamması
-
-> *"Bu component'te `revalidatePath` çağrım neden cache'lenmiş fetch'i yenilemiyor?"*
-
-```
-   Agent'ın muhakemesi (tool trace'lerinden görünür):
-   ─────────────────────────────────────────────────────────────
-   1. (session başında) list_project_dependencies bana söyledi:
-      next → vercel/next.js, 18 sayfa indexli.
-
-   2. find_chunks({
-        query: "revalidatePath cached fetch server component",
-        repos: ["vercel/next.js"]
-      })
-      ► top chunk: "On-demand revalidation" bölümü, rrfScore 0.84,
-        rerankScore 9.2.
-
-   3. get_page({
-        owner: "vercel", repo: "next.js",
-        slug: "app-router/caching",
-        subsection: "on-demand-revalidation"
-      })
-      ► revalidatePath(path, type) imzasıyla tam Markdown.
-
-   4. find_neighbors({ source: "node", id: "RouteCache" })
-      ► RouteCache ─► FullRouteCache, DataCache, RouterCache,
-                       RequestMemoization (hepsi citation'lı).
-   ─────────────────────────────────────────────────────────────
-   Cevap (özet):
-     "revalidatePath(path) tek başına yalnız route segment cache'i
-     invalidate eder. force-cache fetch'in Data Cache'te yaşar ve
-     bağımsız key'lenir. İki cache'i de temizlemek için
-     revalidatePath(path, 'page') kullan veya fetch'i tag'leyip
-     revalidateTag(tag) çağır.  — kaynak commit a1b2c3d'ye pinli"
-```
-
-### Senaryo 2 — Tanımadığın bir kütüphaneye onboarding
-
-> *"Projeye az önce `tanstack-query` ekledim. Beni gezdir."*
-
-```
-   Agent'ın tool akışı:
-     resolve_repo("@tanstack/react-query")             → TanStack/query
-     get_page({ owner, repo, prepareOnly: true })      → pre-warm
-     get_page({ owner, repo, listPages: true })        → 14 sayfa
-     find_chunks({ query: "core concepts",             → 5 chunk
-                   repo: "TanStack/query", k: 5 })
-     get_page({ owner, repo, slug: "guides/important-defaults" })
-
-   Kullanıcının gördüğü:
-     Citation ile yüklü, grounded bir tur — "query", "mutation",
-     "staleTime vs gcTime", "queryClient invalidation" — az önce
-     install'ladığı commit'e pinli olarak.
-```
-
-### Senaryo 3 — Knowledge graph ile mimari keşif
-
-> *"Prisma client'ında data flow'u göster."*
-
-```
-   find_neighbors({ source: "page",
-                    slug: "client/architecture",
-                    kinds: ["diagram_edge", "diagram_member"] })
-        │
-        ▼
-   QueryEngine ─► Request ─► Connector ─► Driver ─► Database
-        │          │           │           │
-        └──────────┴───────────┴───────────┴──► hepsinin yanında
-                                                 belirli source file'lara
-                                                 citation (code_ref edge)
-```
-
-Agent gerçek modül isimleriyle bir mimari özet derler — genel ORM gevezeliği değil, gerçek dosya isimleriyle.
-
-### Senaryo 4 — Derin daldan önce pre-warm
-
-> *"Bu öğleden sonra auth flow'u refactor edeceğim. `next-auth`, `lucia` ve `iron-session` doc'ları hazır olsun."*
-
-```
-   for repo in [nextauthjs/next-auth, lucia-auth/lucia, vvo/iron-session]:
-       get_page({ owner, repo, prepareOnly: true })
-   ─────────────────────────────────────────────────────────────
-   ~12 saniye sonra üç index cache.db'de sıcak. Sonraki her
-   find_chunks çağrısı <50 ms'de döner, cold start yok.
-```
-
----
-
-<a id="kurulum"></a>
-## Hangi agent için nasıl kurulur
-
-İlk çalıştırmada Playwright'ın `chromium-headless-shell`'i (~30 MB) indirilir — CodeWiki Angular SPA olduğu için düz HTTP isteği boş bir shell döndürür, gerçek browser şart. İlk `find_chunks` çağrısında ONNX embedder + reranker modelleri (toplam ~50 MB) iner. İkisi de tek seferlik, kalıcı cache'lenir.
-
-`codewikitap`'i doğrudan çalıştırmazsın — agent onu bir child process olarak başlatır. Aşağıdaki interaktif sihirbazla otomatik kur (önerilen), ya da agent'ına manuel olarak config bloğunu yapıştır.
-
-### İnteraktif kurulum (önerilen)
+## Hızlı kurulum
 
 ```bash
 npx codewikitap install
 ```
 
-Hangi agent (Claude Code, Cursor, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity) ve hangi scope (proje veya user) sorar; mevcut bir entry varsa diff gösterip onay alır; uygun config dosyasını atomik olarak `.bak` yedeğiyle yazar.
-
-Script / CI kullanımı için tüm sorular flag ile geçilebilir:
+İnteraktif sihirbaz target ve scope sorar, diff gösterir ve config'i atomik olarak `.bak` yedeğiyle yazar. Script kullanımı için:
 
 ```bash
 npx codewikitap install --target=claude-code --scope=user --yes
-npx codewikitap install --target=cursor --scope=project --dry-run    # önizleme, dosyaya dokunmaz
 ```
 
-Geçerli `--target` değerleri: `claude-code`, `cursor`, `codex-cli`, `gemini-cli`, `qwen-code`, `opencode`, `windsurf`, `antigravity`. Geçerli `--scope` değerleri: `project`, `user` (bazı hedefler user-only — sihirbaz otomatik seçer).
+| Agent | Config yolu |
+|---|---|
+| Claude Code | `~/.claude/mcp.json` veya proje `.mcp.json` (veya [plugin marketplace](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum#claude-code)) |
+| Cursor | `~/.cursor/mcp.json` veya `<proje>/.cursor/mcp.json` |
+| Codex CLI | `~/.codex/config.toml` |
+| Gemini CLI | `~/.gemini/settings.json` |
+| Qwen Code | `~/.qwen/settings.json` |
+| opencode | `opencode.json` veya `~/.config/opencode/opencode.json` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
+| Antigravity | `~/.gemini/antigravity/mcp_config.json` |
 
-<a id="alternatif-kurulum"></a>
-### Alternatif kurulum yöntemleri
+Agent başına tam config blokları [Kurulum kılavuzu](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum)'nda.
 
-`npx codewikitap install`'in yanı sıra, codewikitap'i elle de bağlayabilirsin — veya bazı CLI'larda mevcut native plugin komutuyla. Tüm CLI'lara özel config blokları aşağıda.
+**Gereksinimler:** Node ≥ 22.5, ~150 MB disk (Playwright shell + ONNX modelleri + cache). İlk çalıştırma `chromium-headless-shell` (~30 MB) ve embedder/reranker modellerini (~50 MB) indirir — ikisi de tek seferlik, kalıcı cache'lenir.
 
-| CLI | Yöntem | Komut / Yol |
-|---|---|---|
-| Claude Code | Plugin marketplace | `/plugin marketplace add burakarslan0110/codewikitap-mcp` → `/plugin install codewikitap@burakarslan0110-codewikitap` |
-| Claude Code | Manuel JSON | `~/.claude/mcp.json` veya proje kökünde `.mcp.json` ([blok](#claude-code)) |
-| Cursor | Manuel JSON | `~/.cursor/mcp.json` veya `<proje>/.cursor/mcp.json` ([blok](#cursor)) |
-| Codex CLI | Manuel TOML | `~/.codex/config.toml` — ilk-taraf marketplace yok ([blok](#codex-cli)) |
-| Gemini CLI | Manuel JSON | `~/.gemini/settings.json` — ilk-taraf marketplace yok ([blok](#gemini-cli)) |
-| Qwen Code | Manuel JSON | `~/.qwen/settings.json` veya proje karşılığı ([blok](#qwen-code)) |
-| opencode | Manuel JSON | `opencode.json` veya `~/.config/opencode/opencode.json` ([blok](#opencode)) |
-| Windsurf | Manuel JSON | `~/.codeium/windsurf/mcp_config.json` ([blok](#windsurf)) |
-| Antigravity | Manuel JSON | `~/.gemini/antigravity/mcp_config.json` ([blok](#antigravity)) |
+## Örnek — Next.js cache muamması
 
-Tüm yollar aşağıda dokümante edilen kanonik config konumlarını gösterir. Yukarıdaki interaktif sihirbaz önerilen yol — diff/backup/atomik-yazma'yı senin için halleder.
-
-### Claude Code
-
-`~/.claude/mcp.json` (user level) veya proje kökünde `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "codewikitap": {
-      "command": "npx",
-      "args": ["-y", "codewikitap"]
-    }
-  }
-}
-```
-
-Veya Claude plugin marketplace üzerinden:
-
-```text
-/plugin marketplace add burakarslan0110/codewikitap-mcp
-/plugin install codewikitap@burakarslan0110-codewikitap
-```
-
-### Cursor
-
-`~/.cursor/mcp.json` veya `<proje>/.cursor/mcp.json` — Claude Code ile aynı JSON şekli.
-
-### Codex CLI
-
-`~/.codex/config.toml`:
-
-```toml
-[mcp_servers.codewikitap]
-command = "npx"
-args = ["-y", "codewikitap"]
-```
-
-### Gemini CLI
-
-`~/.gemini/settings.json` içinde `mcpServers` altına — Claude Code şekliyle birebir aynı.
-
-### Qwen Code
-
-`~/.qwen/settings.json` veya `<proje>/.qwen/settings.json` — Claude Code ile aynı JSON şekli.
-
-### opencode
-
-`opencode.json` (proje) veya `~/.config/opencode/opencode.json` (user). opencode `mcpServers` değil `mcp.<name>` kullanır ve her entry'de `type` ayırt edici alanı gerekir:
-
-```json
-{
-  "mcp": {
-    "codewikitap": {
-      "type": "local",
-      "command": "npx",
-      "args": ["-y", "codewikitap"]
-    }
-  }
-}
-```
-
-### Windsurf
-
-`~/.codeium/windsurf/mcp_config.json` — Claude Code ile aynı JSON şekli. Sadece user scope (proje scope üst akıştan dokümante edilmemiş).
-
-### Antigravity
-
-`~/.gemini/antigravity/mcp_config.json` — Claude Code ile aynı JSON şekli. Sadece user scope.
-
----
-
-<a id="desteklenen-projeler"></a>
-## Desteklenen proje türleri
-
-CodeWikiTap projeni "tanımak" için manifest'i okur. 11 ecosystem'de tam destek var, gerektiğinde workspace traversal ile:
-
-| Ecosystem | Manifest | Workspace / ek |
-|---|---|---|
-| **JavaScript / TypeScript** | `package.json` | npm/pnpm/yarn `workspaces`, `pnpm-workspace.yaml` |
-| **Python** | `requirements.txt`, `pyproject.toml` | PEP 621 + Poetry |
-| **Go** | `go.mod`, `go.work` | tam workspace farkındalığı |
-| **Rust** | `Cargo.toml` | `[workspace] members` (literal + glob) |
-| **PHP** | `composer.json` | platform paketleri otomatik filtrelenir |
-| **Java (Maven)** | `pom.xml` | tam property resolution + cycle-safe recursive BOM imports + `<parent>` POM + `<modules>` aggregator traversal |
-| **Java (Gradle)** | `gradle/libs.versions.toml` | `settings.gradle(.kts)` subproject discovery + her subproject için `build.gradle(.kts)` parsing |
-| **Ruby** | `Gemfile.lock` (tercih edilen) | `Gemfile` regex fallback |
-| **.NET** | `*.csproj` + `Directory.Packages.props` | CPM + `*.sln` çözümlü discovery |
-
-Chat'te "react" demen yeterli — resolver onu `facebook/react`'a map'ler. Maven Central, RubyGems, NuGet, crates.io, Packagist ve npm registry hepsi entegre.
-
----
-
-<a id="yapilandirma"></a>
-## Yapılandırma
-
-Çoğu durumda varsayılanlar yeter. Gerçekten dokunmak isteyebileceğin değişkenler:
-
-| Değişken | Varsayılan | İşlev |
-|---|---|---|
-| `LOG_LEVEL` | `info` | Stderr log seviyesi (`debug` / `info` / `warn` / `error`). |
-| `CODEWIKI_INCLUDE_DEV_DEPS` | kapalı | `devDependencies` de taransın (test tool dokümantasyonu gerektiğinde). |
-| `CODEWIKI_DISABLE_WATCH` | kapalı | Manifest değişikliği izlenmesin (CI/CD). |
-| `CODEWIKI_DISABLE_KG` | kapalı | Knowledge graph kurulmasın; `find_neighbors` kaydedilmesin. |
-| `CODEWIKI_SCAN_MAX_DEPTH` | `8` | `list_project_dependencies` recursive alt klasör tarama BFS derinlik üst sınırı. |
-| `CODEWIKI_FORCE_NO_BM25` | kapalı | Vector-only modu (BM25 dalı atlanır). |
-| `CODEWIKI_RERANK_TOP_N` | `50` | Reranker'a verilen aday sayısı. |
-
-Tam liste: [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### Native bağımlılıklar (sqlite-vec, better-sqlite3)
-
-`sqlite-vec` ve `better-sqlite3` **opsiyonel native bağımlılık** olarak tanımlı. Platform için yayınlanmış prebuilt yoksa kurulum başarısız olmaz:
-
-| Native dep | Yokken | Etki |
-|---|---|---|
-| `better-sqlite3` | macOS/Windows prebuilt yoksa + toolchain yok | In-memory cache fallback; `cache.db` diskte yok (sorgular çalışır, restart cache'i kaybeder) |
-| `sqlite-vec` | macOS SIP, sandbox, Windows ARM, Alpine musl | `vector_store.ts` pure-JS cosine fallback; büyük repolarda ~5–10× yavaş vektör sorgusu. Sonuçların matematik anlamı değişmez. |
-
-Boot sırasında tek satır structured stderr log:
-
-```json
-{"level":"info","msg":"runtime_capabilities","betterSqlite3":true,"sqliteVec":false,"playwright":"ready","nodeVersion":"22.5.0",...}
-```
-
-`sqliteVec: false` görüyor ve sorgular yavaş geliyorsa, uyumlu `sqlite-vec` prebuilt'i yükle veya kaynağından derle:
+> *"`revalidatePath` çağrım neden cache'lenmiş fetch'i yenilemiyor?"*
 
 ```
-npm rebuild sqlite-vec
+   Agent'ın tool trace'i
+   ──────────────────────────────────────────────────────────
+   1. list_project_dependencies  → next → vercel/next.js, 18 sayfa indexli
+   2. find_chunks({ query: "revalidatePath cached fetch", repos: ["vercel/next.js"] })
+                                 → top chunk: "On-demand revalidation",
+                                   rrfScore 0.84, rerankScore 9.2
+   3. get_page({ slug: "app-router/caching", subsection: "on-demand-revalidation" })
+                                 → revalidatePath(path, type) imzasıyla tam Markdown
+   4. find_neighbors({ source: "node", id: "RouteCache" })
+                                 → FullRouteCache, DataCache, RouterCache, RequestMemoization
+   ──────────────────────────────────────────────────────────
+   Cevap:
+     "revalidatePath(path) tek başına yalnız route segment cache'i invalidate eder.
+      force-cache fetch'in Data Cache'te yaşar — revalidatePath(path, 'page') kullan
+      veya fetch'i tag'leyip revalidateTag(tag) çağır.   — commit a1b2c3d'ye pinli"
 ```
 
----
+Daha fazla örnek [Araçlar kılavuzu](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/araclar#gercek-senaryolar)'nda.
 
-<a id="bilinmesi-gerekenler"></a>
-## Bilinmesi gerekenler
+## Desteklenen projeler
 
-- **AI-generated içerik.** Google CodeWiki sayfaları Gemini tarafından üretilir, hata içerebilir. Her chunk ve sayfa altındaki byte-equal citation footer doğrulama için var.
-- **Rate limit.** CodeWiki, aktif bot detection'lı bir Angular SPA. CodeWikiTap kendi tarafında **origin başına 4 saniyede 1 sayfa yükleme** limiti uygular. Tipik interaktif kullanımda hissedilmez; çok sayıda repo'yu eşzamanlı bulk-indeksleme yaparken hissedilir.
-- **Install boyutu.** İlk çalıştırma: ~30 MB Playwright shell. İlk `find_chunks`: ~50 MB ONNX model. İkisi de tek seferlik, kalıcı olarak `~/.cache/...` altında.
-- **Kapsam.** Yalnız direct dependency'ler. `peerDependencies` ve transitive dep'ler kapsam dışı; npm `optionalDependencies` dahil.
-- **Offline dostu.** Bir repo'nun chunk ve KG edge'leri `cache.db`'ye girdikten sonra, 24 saatlik SHA probe devreye girene kadar sorgular network round-trip'i olmadan çalışır.
+**Dokuz ecosystem**, on beş manifest parser: JavaScript / TypeScript, Python, Go, Rust, PHP, Java (Maven), Java (Gradle), Ruby, .NET. Workspace traversal, BOM imports, parent POM resolution mevcut. Tam matris → [Kurulum kılavuzu](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum#desteklenen-proje-turleri).
 
----
-
-<a id="ne-degildir"></a>
 ## Ne *değildir*
 
 - **Bir AI modeli değildir.** İçinde bundle'lı model yok. CodeWikiTap, agent'ın zaten kullandığı AI'a giden **context kalitesini** iyileştirir.
-- **Dokümantasyon üreticisi değildir.** İçerik burada üretilmez. Google CodeWiki'nin Gemini ile ürettiği dokümantasyon fetch'lenir.
-- **Cloud servisi değildir.** Hiçbir şey makinenden çıkmaz. Lokal SQLite cache, lokal ONNX inference, sıfır telemetri.
-- **Google ile bağlantılı değildir.** Bağımsız open-source proje; "CodeWiki" adı yalnızca upstream veri kaynağı olarak betimleyici şekilde geçer.
-- **Private repo için değildir.** Google CodeWiki şu an yalnız public GitHub repolarını kapsar; private erişim waitlist'teki bir Gemini CLI extension'ının arkasında.
+- **Cloud servisi değildir.** Hiçbir şey makinenden çıkmaz. Lokal SQLite, lokal ONNX inference, sıfır telemetri.
+- **Google ile bağlantılı değildir.** Bağımsız open-source proje; "CodeWiki" adı yalnızca veri kaynağı olarak betimleyici şekilde geçer.
+- **Private repo için değildir.** Google CodeWiki şu an yalnız public GitHub repolarını kapsar.
 
----
+## Daha fazla
 
-<a id="yol-haritasi"></a>
-## Yol haritası
-
-- **v0.3** *(şu anki)* — İlk public npm sürümü. İki dilli doc, plugin marketplace, CI/CD, marka kimliği.
-- **v0.4** — `--version` / `--help` argv handler'ları; daha geniş smoke-test kapsamı; macOS CI matrisi.
-- **v0.5+** — Hosted remote MCP transport (Cloudflare Workers + Browser Rendering) — lokal kurulum istemeyenler için.
-
----
-
-## Katkı
-
-[CONTRIBUTING.md](CONTRIBUTING.md) → pnpm toolchain, test akışı, release süreci. Güvenlik açıkları: [SECURITY.md](SECURITY.md), public issue olarak açma.
-
----
+- 📚 **[Dokümantasyon](https://burakarslan0110.github.io/codewikitap-mcp/tr/)** — kavramlar, mimari, 5 araç, yapılandırma referansı
+- 📜 **[CHANGELOG](CHANGELOG.md)** — neyin ne zaman değiştiği
+- 🤝 **[Katkı](CONTRIBUTING.md)** — pnpm toolchain, test akışı, release süreci
+- 🔐 **[Güvenlik](SECURITY.md)** — açıklıkları lütfen public issue olarak açma
 
 ## Lisans
 

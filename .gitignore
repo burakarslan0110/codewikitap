@@ -26,8 +26,11 @@ tests/fixtures/codewiki/*.html
 !tests/fixtures/codewiki/not-found-live.html
 tmp/
 
-# Internal docs (plans, design refs, PRDs, test reports, submission runbook) — local only
-docs/
+# Internal plans/PRDs/design refs — local only. The rest of docs/ is the public
+# VitePress site (deployed to GitHub Pages).
+docs/plans/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
 # AI-agent local config — not part of the public repo
 CLAUDE.md
