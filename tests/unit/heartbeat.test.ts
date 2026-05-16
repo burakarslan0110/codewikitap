@@ -60,8 +60,15 @@ describe('startHeartbeat', () => {
     const first = log.events[0];
     expect(first.name).toBe('runtime_heartbeat');
     expect(typeof first.tags?.rssMb).toBe('number');
+    expect(typeof first.tags?.heapUsedMb).toBe('number');
+    expect(typeof first.tags?.heapTotalMb).toBe('number');
+    expect(typeof first.tags?.externalMb).toBe('number');
     expect(typeof first.tags?.uptimeSec).toBe('number');
     expect(first.tags?.inFlightToolCount).toBe(3);
+    // Sanity: heapUsed should never exceed heapTotal; rss should be >= heapTotal
+    // (RSS includes the heap plus native allocations).
+    expect(first.tags?.heapUsedMb).toBeLessThanOrEqual(first.tags?.heapTotalMb as number);
+    expect(first.tags?.rssMb).toBeGreaterThanOrEqual(first.tags?.heapTotalMb as number);
     handle.stop();
   });
 

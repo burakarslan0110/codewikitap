@@ -32,12 +32,19 @@ export function startHeartbeat(opts: HeartbeatOptions): HeartbeatHandle {
   const { log, getInFlightCount, intervalMs } = opts;
 
   const timer = setInterval(() => {
-    const rssBytes = process.memoryUsage().rss;
-    const rssMb = Math.round(rssBytes / (1024 * 1024));
-    const uptimeSec = Math.round(process.uptime());
+    const mem = process.memoryUsage();
+    const toMb = (b: number): number => Math.round(b / (1024 * 1024));
+    // v0.7.1: split RSS into V8 heap vs native ("external") so OOM forensics
+    // can distinguish V8-internal pressure (heapUsed) from
+    // ONNX/sqlite-vec/better-sqlite3 native allocations (external + rss -
+    // heapTotal). The v0.7.0 cap `--max-old-space-size` only constrains V8
+    // old-space; native bytes were invisible in the previous heartbeat.
     log.metric('runtime_heartbeat', 1, {
-      rssMb,
-      uptimeSec,
+      rssMb: toMb(mem.rss),
+      heapUsedMb: toMb(mem.heapUsed),
+      heapTotalMb: toMb(mem.heapTotal),
+      externalMb: toMb(mem.external),
+      uptimeSec: Math.round(process.uptime()),
       inFlightToolCount: getInFlightCount(),
     });
   }, intervalMs);

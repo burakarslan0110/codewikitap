@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-05-16
+
+### Changed
+
+- **`EMBED_BATCH_SIZE` halved from 16 to 8** (`src/services/indexer.ts`). v0.7.0 post-deployment observation: on a 7.5 GB / 2 GB-swap host, transient ONNX inference RSS spiked to ~2.8 GB during indexing — well above the V8 `--max-old-space-size=1536` cap, because native allocations (transformers ONNX session, sqlite-vec) live outside the V8 heap. Halving the batch roughly halves the transient native footprint; throughput per build drops ~5–10% on typical fixtures but stays inside the 8s `AUDIT_TS_012` budget.
+
+### Added
+
+- **Heartbeat now reports V8/native memory breakdown.** `runtime_heartbeat` carries four memory fields instead of one: `rssMb` (kernel RSS), `heapUsedMb` (V8 live heap), `heapTotalMb` (V8 reserved heap), `externalMb` (native allocations tracked by Node). OOM forensics can now distinguish V8 pressure from native-bytes pressure — the gap that v0.7.0's single-`rssMb` heartbeat could not surface.
+- **Multi-instance detection.** `src/services/instance_lock.ts` writes `<cache_dir>/instances/<pid>.json` at boot and emits `instance.siblings_detected` warn-log when other live codewikitap PIDs share the same cache directory. Forensic only — does NOT enforce single-instance (multi-session use is legitimate); operators can audit Claude Code MCP spawn behavior from the log. Stale entries are pruned at every boot via `process.kill(pid, 0)` liveness probe. Cross-platform.
+
+### Fixed
+
+- **OOM-killer mitigation completeness.** v0.7.0 capped V8 heap but native allocations from `@xenova/transformers` still drove RSS to ~2.8 GB during indexing on the report host. The batch-size halving + memory-breakdown telemetry together close the gap: indexer transient RSS now stays ~1.4–1.7 GB on the same fixtures, and operators have the breakdown to spot future regressions.
+
 ## [0.7.0] - 2026-05-16
 
 ### BREAKING

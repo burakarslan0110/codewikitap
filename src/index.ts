@@ -31,6 +31,7 @@ import {
   DISABLE_HEARTBEAT,
 } from './config.js';
 import { startHeartbeat, type HeartbeatHandle } from './services/heartbeat.js';
+import { registerInstance, type InstanceLockHandle } from './services/instance_lock.js';
 import { getInFlightCount } from './tools/withMetrics.js';
 import { Cache } from './services/cache.js';
 import { VectorStore } from './services/vector_store.js';
@@ -334,6 +335,12 @@ async function main(): Promise<void> {
   // This is purely informational — no production code branches on it.
   log.info('runtime.execArgv', { execArgv: process.execArgv });
 
+  // v0.7.1: detect parallel codewikitap children sharing the same cache.db.
+  // Forensic-only — does NOT enforce single-instance (multi-session use is
+  // legitimate). Emits `instance.siblings_detected` warn when applicable so
+  // operators can audit Claude Code MCP spawn behavior. Released on shutdown.
+  const instanceLock: InstanceLockHandle = registerInstance();
+
   // v0.7: start the runtime heartbeat AFTER the handshake is advertised.
   // The interval uses setInterval(...).unref() so it never holds the event
   // loop alive past shutdown. closer() stops the handle before cache close.
@@ -437,6 +444,9 @@ async function main(): Promise<void> {
       // doesn't reference a closed SQLite handle (the metric itself doesn't
       // touch the cache, but a future-extender might add cache.stats()).
       if (heartbeatHandle) heartbeatHandle.stop();
+      // v0.7.1: release the instance lock so siblings see one fewer record.
+      // Idempotent — safe even if the unlink races another instance's prune.
+      instanceLock.release();
       if (watcher) await watcher.stop();
       await driver.close();
       built.cache.close();

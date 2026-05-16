@@ -69,7 +69,16 @@ export interface IndexerBuildOptions {
   buildGraph?: boolean;
 }
 
-const EMBED_BATCH_SIZE = 16;
+/**
+ * v0.7.1: halved from 16 → 8 after the v0.7.0 deployment revealed transient
+ * ONNX inference RSS spikes to ~2.8 GB during indexing on a 7.5 GB / 2 GB-
+ * swap host (OOM-killed despite the 1.5 GB V8 heap cap, because RSS = V8
+ * heap + native allocations from `@xenova/transformers`). Halving the batch
+ * roughly halves the transient ONNX session memory; throughput per build
+ * drops ~5–10% on typical fixtures but stays well inside the 8s
+ * `AUDIT_TS_012` indexer-build budget.
+ */
+const EMBED_BATCH_SIZE = 8;
 
 /**
  * Read once at module load. Production toggles this to roll back v2.1 KG
