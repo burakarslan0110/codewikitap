@@ -5,9 +5,6 @@ hero:
   name: CodeWikiTap
   text: Google CodeWiki, doğrudan agent'ında.
   tagline: Google CodeWiki dokümantasyonunu kodlama agent'ına RAG ile akıtan unofficial bir MCP server'ı — parçalanmış, kaynak gösterilmiş, paketin pinli olduğu commit SHA'sına sabitlenmiş şekilde.
-  image:
-    src: /banner.png
-    alt: CodeWikiTap
   actions:
     - theme: brand
       text: Başla
@@ -59,3 +56,7 @@ Bu site, public yüzeyi ve tasarımı belgeler. Kavramsal model için [CodeWikiT
 :::
 
 > CodeWikiTap bağımsız, **unofficial** bir projedir. Google ile bağlantılı değildir; Google tarafından onaylanmamış veya desteklenmemiştir. "CodeWiki" adı yalnızca upstream veri kaynağı olarak betimleyici şekilde geçer.
+
+---
+
+<p align="center"><sub><a href="https://github.com/burakarslan0110">Burak Arslan</a> tarafından geliştirilmiştir</sub></p>

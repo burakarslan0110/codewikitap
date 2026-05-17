@@ -15,3 +15,25 @@
   height: 32px;
   width: auto;
 }
+
+.VPHero .container {
+  flex-direction: column;
+  text-align: center;
+}
+
+.VPHero .main {
+  max-width: 880px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.VPHero .name,
+.VPHero .text,
+.VPHero .tagline {
+  text-align: center;
+  max-width: none;
+}
+
+.VPHero .actions {
+  justify-content: center;
+}

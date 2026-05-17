@@ -5,9 +5,6 @@ hero:
   name: CodeWikiTap
   text: Google CodeWiki, in your agent.
   tagline: An unofficial, RAG-powered MCP server that streams Google CodeWiki documentation into your coding agent — chunked, cited, and grounded in the exact commit your dependency is pinned to.
-  image:
-    src: /banner.png
-    alt: CodeWikiTap
   actions:
     - theme: brand
       text: Get started
@@ -59,3 +56,7 @@ This site documents the public surface and the design. Continue with [What is Co
 :::
 
 > CodeWikiTap is an independent, **unofficial** project. It is not affiliated with, endorsed by, or sponsored by Google. The "CodeWiki" name is referenced descriptively as the upstream data source.
+
+---
+
+<p align="center"><sub>Developed by <a href="https://github.com/burakarslan0110">Burak Arslan</a></sub></p>
