@@ -27,11 +27,18 @@
   text-align: center;
 }
 
+.VPHero .heading {
+  display: block;
+  text-align: center;
+}
+
 .VPHero .name,
 .VPHero .text,
 .VPHero .tagline {
+  display: block;
   text-align: center;
   max-width: none;
+  width: 100%;
 }
 
 .VPHero .actions {
