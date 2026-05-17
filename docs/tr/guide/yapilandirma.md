@@ -1,135 +1,135 @@
 # Yapılandırma
 
-Çoğu durumda varsayılanlar yeter. Aşağıdaki değişkenler alana göre gruplanmış; gerçekten elini atmak isteyebileceklerin **★** ile işaretli.
+Çoğu durumda varsayılanlar yeterlidir. Aşağıdaki değişkenler alana göre gruplanmıştır; gerçekten elinizi atmak isteyebileceğiniz olanlar **★** ile işaretli.
 
 ## Loglama
 
 | Değişken | Varsayılan | Etki |
 |---|---|---|
-| **★** `LOG_LEVEL` | `info` | Stderr log seviyesi (`debug` / `info` / `warn` / `error`). |
+| **★** `LOG_LEVEL` | `info` | stderr log seviyesi (`debug` / `info` / `warn` / `error`). |
 
 ## Proje taraması
 
 | Değişken | Varsayılan | Etki |
 |---|---|---|
-| **★** `CODEWIKI_INCLUDE_DEV_DEPS` | kapalı | `devDependencies` de taransın (test tool dokümantasyonu gerektiğinde). |
-| **★** `CODEWIKI_DISABLE_WATCH` | kapalı | Manifest değişikliği izlenmesin (CI/CD'ye uygun). |
-| `CODEWIKI_SCAN_MAX_DEPTH` | `8` | `list_project_dependencies` recursive alt klasör tarama BFS derinlik üst sınırı. |
-| `CODEWIKI_MAX_WALK_DEPTH` | `32` | cwd'den `$HOME`'a manifest aramada yukarı yürüme derinliği. |
-| `CODEWIKI_MAX_MANIFEST_BYTES` | `1048576` | Manifest dosya boyutu üst sınırı (untrusted-input hardening). |
-| `CODEWIKI_MAX_WORKSPACE_MEMBERS` | `256` | Proje başına workspace member sayısı üst sınırı. |
-| `CODEWIKI_MAX_WATCHED_PATHS` | `512` | chokidar watch listesi üst sınırı. |
-| `CODEWIKI_MAX_BOM_DEPTH` | `5` | Maven BOM recursion derinliği (cycle-safe). |
+| **★** `CODEWIKI_INCLUDE_DEV_DEPS` | kapalı | `devDependencies` de taransın (test araçlarının dokümantasyonu lazım olduğunda). |
+| **★** `CODEWIKI_DISABLE_WATCH` | kapalı | Manifest değişiklikleri izlenmesin (CI/CD için uygun). |
+| `CODEWIKI_SCAN_MAX_DEPTH` | `8` | `list_project_dependencies` özyinelemeli alt klasör taraması için BFS derinlik üst sınırı. |
+| `CODEWIKI_MAX_WALK_DEPTH` | `32` | cwd'den `$HOME`'a doğru manifest ararken yukarı yürüme derinliği. |
+| `CODEWIKI_MAX_MANIFEST_BYTES` | `1048576` | Manifest dosyası için byte üst sınırı (untrusted-input önlemi). |
+| `CODEWIKI_MAX_WORKSPACE_MEMBERS` | `256` | Proje başına workspace üye sayısı üst sınırı. |
+| `CODEWIKI_MAX_WATCHED_PATHS` | `512` | chokidar izleme listesi üst sınırı. |
+| `CODEWIKI_MAX_BOM_DEPTH` | `5` | Maven BOM özyineleme derinliği (döngüye karşı korumalı). |
 
-## Cache TTL'leri
+## Önbellek süreleri
 
 | Değişken | Varsayılan | Etki |
 |---|---|---|
-| `CODEWIKI_PAGE_TTL_MS` | `86400000` (24 saat) | Tek CodeWiki sayfası SHA probe öncesi ne kadar taze kalır. |
-| `CODEWIKI_REPO_TTL_MS` | `604800000` (7 gün) | Ad → `owner/repo` çözünürlüğü ne kadar taze kalır. |
-| `CODEWIKI_WIKI_STATUS_TTL_MS` | `86400000` (24 saat) | Repo başına kapsam probe'u ne kadar taze kalır. |
-| `CODEWIKI_FORCE_INMEMORY` | kapalı | In-memory cache zorla (`better-sqlite3` mevcut olsa bile atla). |
+| `CODEWIKI_PAGE_TTL_MS` | `86400000` (24 saat) | Bir CodeWiki sayfası SHA kontrolünden önce ne kadar taze sayılır. |
+| `CODEWIKI_REPO_TTL_MS` | `604800000` (7 gün) | Ad → `owner/repo` çözümlemesi ne kadar taze sayılır. |
+| `CODEWIKI_WIKI_STATUS_TTL_MS` | `86400000` (24 saat) | Depo başına kapsam kontrolü ne kadar taze sayılır. |
+| `CODEWIKI_FORCE_INMEMORY` | kapalı | Bellek içi önbelleği zorla (`better-sqlite3` yüklü olsa bile atla). |
 
 ## HTTP ve Playwright
 
 | Değişken | Varsayılan | Etki |
 |---|---|---|
-| `CODEWIKI_MAX_CONCURRENT_PAGES` | `3` | Origin başına eşzamanlı Playwright sayfa yükleme üst sınırı. |
-| `CODEWIKI_RATE_LIMIT_INTERVAL_MS` | `4000` | Origin başına sayfa yüklemeleri arası minimum süre. |
+| `CODEWIKI_MAX_CONCURRENT_PAGES` | `3` | Kaynak başına eşzamanlı Playwright sayfa yükleme üst sınırı. |
+| `CODEWIKI_RATE_LIMIT_INTERVAL_MS` | `4000` | Kaynak başına ardışık sayfa yüklemeleri arasındaki en az süre. |
 | `CODEWIKI_PAGE_LOAD_TIMEOUT_MS` | `30000` | Sayfa başına wall-clock üst sınırı. |
-| `CODEWIKI_FETCH_TIMEOUT_MS` | `5000` | Playwright dışı HTTP request timeout'u. |
-| **★** `CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS` | `180000` | Boot-time `npx playwright install` wallclock üst sınırı. |
+| `CODEWIKI_FETCH_TIMEOUT_MS` | `5000` | Playwright dışı HTTP istek zaman aşımı. |
+| **★** `CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS` | `180000` | Açılışta çalışan `npx playwright install` için wall-clock üst sınırı. |
 
-## Retrieval (RAG)
+## Arama (RAG)
 
 | Değişken | Varsayılan | Etki |
 |---|---|---|
-| `CODEWIKI_EMBED_MODEL` | `Xenova/bge-small-en-v1.5` | ONNX embedding model. |
-| `CODEWIKI_EMBED_MODEL_DIM` | `384` | Embedding boyutu. Model ile eşleşmeli. |
-| `CODEWIKI_CHUNK_MAX_TOKENS` | `512` | Chunk başına max token. |
-| `CODEWIKI_CHUNK_OVERLAP_TOKENS` | `64` | Chunk overlap. |
-| `CODEWIKI_INDEX_TTL_MS` | `86400000` (24 saat) | Repo başına index ne kadar geçerli (SHA probe öncesi). |
-| `CODEWIKI_INDEX_BUILD_TIMEOUT_MS` | `15000` | `find_chunks` indexer'a karşı yarıştığı deadline. Aşılırsa `status: 'index_building'` döner. |
-| `CODEWIKI_RERANK_MODEL` | `Xenova/ms-marco-MiniLM-L-6-v2` | ONNX cross-encoder reranker. |
-| **★** `CODEWIKI_RERANK_TOP_N` | `50` | Reranker'a verilen aday sayısı. |
-| `CODEWIKI_RERANK_DOWNLOAD_TIMEOUT_MS` | `15000` | Reranker model indirme timeout'u. |
-| `CODEWIKI_RERANKER_CIRCUIT_BREAKER_MS` | `60000` | Reranker hatasından sonra retry'a kadar bekleme süresi. |
-| **★** `CODEWIKI_FORCE_NO_BM25` | kapalı | Vector-only mod (BM25 dalı atlanır). |
-| **★** `CODEWIKI_FORCE_PUREJS_VECTOR` | kapalı | `sqlite-vec` mevcut olsa bile pure-JS cosine zorla. |
+| `CODEWIKI_EMBED_MODEL` | `Xenova/bge-small-en-v1.5` | ONNX gömme modeli. |
+| `CODEWIKI_EMBED_MODEL_DIM` | `384` | Gömme boyutu. Modelle eşleşmek zorundadır. |
+| `CODEWIKI_CHUNK_MAX_TOKENS` | `512` | Parça başına en fazla token. |
+| `CODEWIKI_CHUNK_OVERLAP_TOKENS` | `64` | Parça çakışma payı. |
+| `CODEWIKI_INDEX_TTL_MS` | `86400000` (24 saat) | Depo başına indeks ne kadar geçerli (SHA kontrolünden önce). |
+| `CODEWIKI_INDEX_BUILD_TIMEOUT_MS` | `15000` | `find_chunks`'ın indeksleyiciye karşı yarıştığı zaman sınırı. Aşılırsa `status: 'index_building'` döner. |
+| `CODEWIKI_RERANK_MODEL` | `Xenova/ms-marco-MiniLM-L-6-v2` | ONNX cross-encoder yeniden sıralayıcı. |
+| **★** `CODEWIKI_RERANK_TOP_N` | `50` | Yeniden sıralayıcıya verilen aday sayısı. |
+| `CODEWIKI_RERANK_DOWNLOAD_TIMEOUT_MS` | `15000` | Yeniden sıralayıcı modeli indirme zaman aşımı. |
+| `CODEWIKI_RERANKER_CIRCUIT_BREAKER_MS` | `60000` | Yeniden sıralayıcı hatasından sonra tekrar denemeye kadar bekleme süresi. |
+| **★** `CODEWIKI_FORCE_NO_BM25` | kapalı | Yalnız vektör modu (BM25 dalı atlanır). |
+| **★** `CODEWIKI_FORCE_PUREJS_VECTOR` | kapalı | `sqlite-vec` yüklü olsa bile saf JS cosine'ı zorla. |
 | `CODEWIKI_RRF_K` | `60` | Reciprocal Rank Fusion `k` sabiti. |
-| **★** `CODEWIKI_DISABLE_MODEL_WARMUP` | kapalı | Boot-time embedder + reranker warmup atla. |
-| **★** `CODEWIKI_DISABLE_KG` | kapalı | Knowledge graph build atla; `find_neighbors` tamamen kayıttan düşer. |
+| **★** `CODEWIKI_DISABLE_MODEL_WARMUP` | kapalı | Açılışta yapılan embedder + yeniden sıralayıcı ön ısıtmasını atla. |
+| **★** `CODEWIKI_DISABLE_KG` | kapalı | Bilgi grafı inşasını atla; `find_neighbors` tamamen kayıttan düşer. |
 
-## Kaynak yönetimi ve metric
-
-| Değişken | Varsayılan | Etki |
-|---|---|---|
-| `CODEWIKI_NODE_HEAP_MB` | `1536` | V8 old-space heap cap (self-reexec wrapper). |
-| `CODEWIKI_DISABLE_HEAP_CAP` | kapalı | Heap-cap wrapper'ı tamamen atla (rollback). |
-| `CODEWIKI_HEARTBEAT_INTERVAL_MS` | `30000` | `runtime_heartbeat` stderr metric'inin aralığı. |
-| `CODEWIKI_DISABLE_HEARTBEAT` | kapalı | Heartbeat metric'ini kapat. |
-| `CODEWIKI_METRIC_AGGREGATE` | kapalı | `tool_latency_ms` satırlarını çağrı başına yerine agrega olarak yay. |
-| `CODEWIKI_METRIC_FLUSH_INTERVAL_MS` | `30000` | Agrega metric flush aralığı. |
-
-## Diagnostics
+## Kaynak yönetimi ve metrikler
 
 | Değişken | Varsayılan | Etki |
 |---|---|---|
-| `CODEWIKI_STDOUT_TRIPWIRE` | kapalı | Stdout etrafında side-observe wrapper; non-JSON-RPC byte'larda uyarır. Asla yönlendirmez. |
+| `CODEWIKI_NODE_HEAP_MB` | `1536` | V8 old-space heap üst sınırı (kendi kendini yeniden başlatan sarmalayıcı). |
+| `CODEWIKI_DISABLE_HEAP_CAP` | kapalı | Heap üst sınırı sarmalayıcısını tamamen atla (geri dönüş yolu). |
+| `CODEWIKI_HEARTBEAT_INTERVAL_MS` | `30000` | `runtime_heartbeat` stderr metriğinin aralığı. |
+| `CODEWIKI_DISABLE_HEARTBEAT` | kapalı | Heartbeat metriğini kapat. |
+| `CODEWIKI_METRIC_AGGREGATE` | kapalı | `tool_latency_ms` satırlarını çağrı başına değil, toplu olarak yay. |
+| `CODEWIKI_METRIC_FLUSH_INTERVAL_MS` | `30000` | Toplu metrik gönderim aralığı. |
+
+## Tanılama
+
+| Değişken | Varsayılan | Etki |
+|---|---|---|
+| `CODEWIKI_STDOUT_TRIPWIRE` | kapalı | stdout etrafında yalnız gözlem yapan sarmalayıcı; JSON-RPC dışı byte'larda uyarır. Asla yön değiştirmez. |
 
 ## Sorun giderme
 
-### Cold start'ta MCP `-32000`
+### Soğuk başlangıçta MCP `-32000`
 
-`npx codewikitap`'in ilk çalıştırmasında MCP client `-32000` rapor ediyor ve yeniden bağlanıyor.
+`npx codewikitap`'in ilk çalıştırmasında MCP istemcisi `-32000` raporu veriyor ve yeniden bağlanıyor.
 
-**Sebep:** genellikle codewikitap process'inin içinde takılan veya reddedilen `npx playwright install --only-shell chromium` (corporate proxy, offline sandbox, npm registry erişilemez).
+**Sebep:** Çoğu zaman codewikitap sürecinin içinde takılan ya da reddedilen `npx playwright install --only-shell chromium` (kurumsal proxy, çevrimdışı sandbox, npm registry'ye erişim yok).
 
 **Çözüm:**
 
-1. Install'ı bir kerelik manuel çalıştır:
+1. Kurulumu bir kerelik elinizle çalıştırın:
 
    ```bash
    npx playwright install --only-shell chromium
    ```
 
-2. codewikitap'i yeniden başlat. Sonraki çalıştırmalar disk'teki binary'i kullanır ve `transport.connect()`'e milisaniyeler içinde ulaşır.
+2. codewikitap'i yeniden başlatın. Sonraki çalıştırmalar diskteki ikiliyi kullanır ve `transport.connect()`'e milisaniyeler içinde ulaşır.
 
-3. Install başarısız olur ve server'ı browser-using tool'lar degrade halde anında ayağa kaldırman gerekirse `CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS=5000` set et. MCP handshake başarılı olur; browser tool'ları (`get_page`, `find_chunks` cache-miss, `find_neighbors` cache-miss) install bitene kadar `rate_limited` retry envelope döner. Browser kullanmayan tool'lar (`list_project_dependencies`, `resolve_repo`) etkilenmez.
+3. Kurulum başarısız oluyorsa ve tarayıcı kullanan araçlar düşük performansla bile olsa hemen ayağa kalksın istiyorsanız `CODEWIKI_PLAYWRIGHT_INSTALL_TIMEOUT_MS=5000` verin. MCP el sıkışması başarılı olur; tarayıcı kullanan araçlar (`get_page`, `find_chunks` önbellek dışı, `find_neighbors` önbellek dışı) kurulum bitene kadar `rate_limited` zarfı döndürür. Tarayıcı kullanmayan araçlar (`list_project_dependencies`, `resolve_repo`) bundan etkilenmez.
 
 ### `sqliteVec: false` ve sorgular yavaş
 
-Boot'taki `runtime_capabilities` log satırı `sqliteVec: false` gösteriyor.
+Açılıştaki `runtime_capabilities` log satırı `sqliteVec: false` gösteriyor.
 
-**Sebep:** `sqlite-vec` native extension platforma uygun şekilde kurulamadı (macOS SIP, sandboxed container, Windows ARM, Alpine musl prebuilt'i kırar).
+**Sebep:** `sqlite-vec` yerel uzantısı platformunuza kurulamadı (macOS SIP, sandbox'lı konteyner, Windows ARM, Alpine musl prebuilt'i kırar).
 
-**Çözüm:** uyumlu prebuilt'i yükle veya kaynağından derle:
+**Çözüm:** Uyumlu prebuilt'i yükleyin ya da kaynağından derleyin:
 
 ```bash
 npm rebuild sqlite-vec
 ```
 
-Vector ranking yine çalışır (`vector_store.ts` pure-JS cosine) — büyük repolarda ~5–10× daha yavaştır sadece. Matematik eşdeğer.
+Vektör sıralaması yine çalışır (`vector_store.ts` saf JS cosine yedek yoluna döner) — yalnızca büyük depolarda ~5–10 kat daha yavaş olur. Matematik eşdeğer.
 
-### `betterSqlite3: false` ve restart cache'i kaybediyor
+### `betterSqlite3: false` ve yeniden başlatma önbelleği kaybediyor
 
 `runtime_capabilities` log satırı `betterSqlite3: false` gösteriyor.
 
-**Sebep:** `better-sqlite3` opsiyonel native dep'tir; platformun prebuilt'i ve C++ toolchain'i yoksa install atlar.
+**Sebep:** `better-sqlite3` opsiyonel yerel bağımlılıktır; platformunuzun prebuilt'i ve C++ toolchain'iniz yoksa kurulum atlanır.
 
-**Etki:** In-memory cache; sorgular çalışır, ama restart her şeyi kaybeder (chunks, vectors, KG edges).
+**Etki:** Bellek içi önbellek devreye girer; sorgular çalışır ama yeniden başlatma her şeyi sıfırlar (parçalar, vektörler, bilgi grafı bağlantıları).
 
-**Çözüm:** Platformuna uygun prebuilt'i yükle veya build toolchain'i (Xcode CLI / VS Build Tools / `apt install build-essential`) kur ve `pnpm install`'ı tekrar çalıştır.
+**Çözüm:** Platformunuza uygun prebuilt'i yükleyin ya da derleme araçlarını (Xcode CLI / VS Build Tools / `apt install build-essential`) kurup `pnpm install`'ı yeniden çalıştırın.
 
-### Birçok repo'yu bulk indexlemek yavaş hissediyor
+### Çok sayıda depoyu toplu indekslemek yavaş hissettiriyor
 
-CodeWiki aktif bot detection'lı bir Angular SPA. CodeWikiTap origin başına 4 saniyede 1 sayfa yükleme limitini kendi tarafında uygular (`CODEWIKI_RATE_LIMIT_INTERVAL_MS=4000`). Tipik interaktif kullanımda hissedilmez; bulk-indeksleme yaparken hissedilir.
+CodeWiki aktif bot tespitli bir Angular SPA. CodeWikiTap, kaynak başına 4 saniyede 1 sayfa kuralını kendi tarafında uygular (`CODEWIKI_RATE_LIMIT_INTERVAL_MS=4000`). Olağan etkileşimli kullanımda bu hissedilmez; toplu indeksleme yaptığınızda hissedilir.
 
-Aynı anda birçok repo indeksliyorsan, `get_page({ prepareOnly: true })` çağrılarıyla ön-ısıt — böylece sonraki `find_chunks` istekleri warm index'e gelir.
+Aynı anda birçok depoyu indeksliyorsanız `get_page({ prepareOnly: true })` çağrılarıyla ön ısıtın — sonraki `find_chunks` istekleri sıcak indekse gelir.
 
-### "MCP server kayıtlı ama agent tool'ları görmüyor"
+### "MCP sunucusu kayıtlı ama agent araçları görmüyor"
 
-Config dosyası yazıldı ama agent yeniden yüklenmedi. Agent'ı tamamen kapat ve yeniden aç (sadece pencereyi kapatma yetmeyebilir — bazı agent'lar MCP server listesini session için cache'ler).
+Yapılandırma dosyası yazıldı ama agent yeniden yüklenmedi. Agent'ı tamamen kapatıp yeniden açın (yalnız pencereyi kapatmak yetmeyebilir — bazı agent'lar MCP sunucu listesini oturum boyunca önbelleğe alır).
 
 ---
 

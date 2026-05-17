@@ -1,61 +1,61 @@
 # CodeWikiTap nedir?
 
-## Google CodeWiki — upstream kaynak
+## Google CodeWiki — kaynak
 
-[**Google CodeWiki**](https://codewiki.google), Google'ın bir araştırma projesi: gezegendeki her public GitHub deposu için derinlikli, yapılandırılmış bir teknik wiki üretiyor. Arka planda tamamen Gemini çalışıyor — her sayfa kaynak ağacından sentezleniyor, her pull-request birleşmesinde yeniden üretiliyor ve belirli bir commit SHA'sına sabitleniyor; yani dokümantasyon koddan asla "kaymıyor".
+[**Google CodeWiki**](https://codewiki.google), Google'ın bir araştırma projesi: dünyadaki her herkese açık GitHub deposu için derinlikli ve yapılandırılmış bir teknik wiki üretiyor. Tüm üretimi Gemini yapıyor — her sayfa kaynak ağacından sentezleniyor, her pull request birleşmesinde yeniden oluşturuluyor ve belirli bir commit'e sabitleniyor; dolayısıyla dokümantasyon koddan asla "kaymıyor".
 
-CodeWiki sayfasında bulduğun şey, sıradan bir API tablosundan ibaret değil:
+Bir CodeWiki sayfasında karşınıza çıkan şey sıradan bir API tablosu değildir:
 
-- **Modül seviyesinde anlatım** — sana onboarding yapan kıdemli bir mühendis gibi: modül ne işe yarar, sistemde nasıl konumlanır, nelere bağlıdır.
+- **Modül seviyesinde anlatım** — size onboarding yapan kıdemli bir mühendis edasıyla: modül ne işe yarar, sistemde nereye oturur, neye bağlıdır.
 - **Mimari diyagramlar** (Mermaid) — büyük sistemler için, gerçek call-graph'tan otomatik üretilmiş.
-- **Cross-reference'lar** — kaynak dosyalar, type'lar ve diğer depolar arasında.
-- **Citation footer** — her sayfanın altında, açıklamanın türetildiği commit ve dosyaya doğrudan link.
+- **Çapraz referanslar** — kaynak dosyalar, türler ve diğer depolar arasında.
+- **Kaynak alt bilgisi** — her sayfanın altında, içeriğin türetildiği commit ve dosyaya doğrudan bağlantı.
 
-Dikkat edilecek iki şey var:
+İki nokta üzerinde durmak gerekiyor:
 
-1. **Yalnız public GitHub.** Private repo erişimi waitlist'teki bir Gemini extension'ının arkasında; CodeWikiTap bu kısıtı aşmıyor.
-2. **AI-generated içerik.** Gemini iyi ama yanılmaz değil. Her sayfa kaynağına link veriyor — doğruluk kritikse oraya bakmak lazım.
+1. **Yalnızca herkese açık GitHub depoları.** Özel depo erişimi, bekleme listesindeki bir Gemini eklentisinin arkasında; CodeWikiTap bu kısıtı aşmıyor.
+2. **Yapay zeka tarafından üretilen içerik.** Gemini iyi, ama yanılmaz değil. Her sayfa kaynağına bağlantı veriyor — doğruluk kritikse oradan teyit etmek gerekir.
 
-::: warning Google ile bağlantılı değil
-CodeWikiTap bağımsız bir open-source projedir. "CodeWiki" adı yalnızca upstream veri kaynağı olarak betimleyici şekilde geçer. İçerikte ne Google'a ait bir parça vardır ne de Google'ın onayı/desteği söz konusudur.
+::: warning Google ile bağlantısı yoktur
+CodeWikiTap bağımsız bir açık kaynak projedir. "CodeWiki" adı yalnızca veri kaynağını belirtmek için kullanılır. İçerikte ne Google'a ait bir parça vardır ne de Google'ın onayı söz konusudur.
 :::
 
-## CodeWikiTap — lokal MCP server
+## CodeWikiTap — yerel MCP sunucusu
 
-CodeWikiTap, makinende lokal çalışan küçük bir Node/TypeScript programı — bir **Model Context Protocol (MCP) server**. Kodlama agent'ın (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) ona stdio üzerinden konuşur. Kilitli bir **beş tool**'luk yüzey sunar ve agent ihtiyacı olduğu anda CodeWiki içeriğini context'ine çekebilir.
+CodeWikiTap, bilgisayarınızda yerel olarak çalışan küçük bir Node/TypeScript uygulamasıdır — bir **Model Context Protocol (MCP) sunucusu**. Kullandığınız kodlama agent'ı (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) onunla stdio üzerinden konuşur. Sunucu agent'a sabit **beş araçlık** bir yüzey sunar; agent ihtiyaç duyduğunda CodeWiki içeriğini kendi bağlamına çekebilir.
 
 En kısa zihinsel model:
 
 ```
        ┌────────────────────────┐
-       │   Kodlama agent'ın     │
+       │   Kodlama agent'ınız   │
        │   bir soru sorar       │
        └────────────┬───────────┘
                     │  stdio (JSON-RPC)
                     ▼
        ┌────────────────────────┐
-       │      CodeWikiTap       │   ← lokal, API key yok, telemetri yok
-       │   (bu MCP server)      │
+       │      CodeWikiTap       │   ← yerel, API anahtarı yok, telemetri yok
+       │   (MCP sunucusu)       │
        └────────────┬───────────┘
-                    │  hybrid retrieval, indekslenmiş CodeWiki sayfaları
+                    │  hibrit arama, indekslenmiş CodeWiki sayfaları
                     ▼
        ┌────────────────────────┐
-       │   Google CodeWiki      │   ← upstream, yalnız public repo
-       │   (cache'li, SHA-pinli)│
+       │   Google CodeWiki      │   ← üst kaynak, yalnız public repo
+       │  (önbellekli, sabit)   │
        └────────────────────────┘
 ```
 
-"Sadece CodeWiki'yi fetch'le" demek değil — üstüne şunları ekliyor:
+"Sadece CodeWiki'yi çek" demek değil — şunları da ekliyor:
 
-- **Project-awareness.** Açılışta manifest'ini (`package.json`, `pom.xml`, `Cargo.toml`, `go.mod`, …) tarar, direct dependency'lerini GitHub repolarına çözer, her birinde CodeWiki kapsamı olup olmadığını yoklar. Agent, daha ilk soruyu sormadan hangi kütüphanenin dokümantasyonu olduğunu bilir.
-- **Hybrid retrieval.** BM25 keyword search + dense vector search → Reciprocal Rank Fusion → cross-encoder rerank. Her chunk'a beş ayrı puan döndürülür; sıralama denetlenebilir, kara kutu değil.
-- **Knowledge graph.** Indexing sırasında aynı SQLite transaction'ında beş tipte edge çıkarılır. Agent "`src/auth.ts`'e hangi sayfalar atıf yapıyor?" veya "`AuthRouter` diagram node'una neler bağlı?" diye sorabilir.
-- **Citation zorunlu.** Her chunk ve her sayfa cevabı, source URL ile commit SHA'yı taşıyan byte-equal bir footer ile gelir. Footer test'lerle assert edilir; susturmanın yolu yok.
-- **Kilitli tool yüzeyi.** Server altıncı bir tool kaydetmeyi reddeder. `/(search|ask|query|generate|index|write)/i` ile eşleşen isimler kod seviyesinde reddedilir — hiçbir plugin veya hook API'yi sessizce genişletemez.
+- **Proje farkındalığı.** Açılışta manifest dosyanızı (`package.json`, `pom.xml`, `Cargo.toml`, `go.mod`, …) okur, doğrudan bağımlılıklarınızı GitHub depolarına eşler ve her birinin CodeWiki'de karşılığı olup olmadığını yoklar. Agent daha ilk soruyu sormadan, hangi kütüphanenin dokümantasyonu olduğunu bilir.
+- **Hibrit arama.** BM25 keyword araması + dense vektör araması → Reciprocal Rank Fusion → cross-encoder ile yeniden sıralama. Her parça için beş ayrı puan döner; sıralama denetlenebilir, kara kutu değildir.
+- **Bilgi grafı.** İndeksleme sırasında aynı SQLite işleminde beş tür bağlantı çıkarılır. Agent "`src/auth.ts` dosyasına hangi sayfalar atıf yapıyor?" ya da "`AuthRouter` diyagram düğümüne neler bağlı?" diye sorabilir.
+- **Kaynak gösterimi zorunlu.** Her parça ve her sayfa cevabı, kaynak URL'sini ve commit'i içeren değişmez bir alt bilgiyle gelir. Bu alt bilgi testlerle doğrulanır; kapatmanın bir yolu yoktur.
+- **Sabit araç yüzeyi.** Sunucu altıncı bir araç kaydetmeyi reddeder. `/(search|ask|query|generate|index|write)/i` ile eşleşen isimler kod seviyesinde geri çevrilir — hiçbir eklenti veya kanca API'yi sessizce genişletemez.
 
-## Neden RAG-powered? Doc'u doğrudan vermek varken neden?
+## Neden RAG? Dokümanı doğrudan vermek varken?
 
-Bir CodeWiki sayfası tipik olarak 2.000 – 4.000 token civarındadır. Gerçek bir kütüphanenin onlarcası vardır. Örneğin Next.js bu yazı yazılırken **18 sayfa**; React'in onlarcası var. Hepsini agent'ın context'ine doldurmaya kalkarsan, daha soruyu okumadan token bütçen biter.
+Bir CodeWiki sayfası tipik olarak 2.000 – 4.000 token civarındadır. Gerçek bir kütüphanenin onlarcası vardır. Örneğin yazıldığı sırada Next.js'in **18 sayfası**, React'in 40'tan fazlası mevcut. Hepsini agent'ın bağlamına doldurmaya kalkarsanız, daha soruyu okumadan token bütçeniz tükenir.
 
 ```
 NAİF YAKLAŞIM (RAG yok) — "agent'a her şeyi ver"
@@ -67,45 +67,45 @@ NAİF YAKLAŞIM (RAG yok) — "agent'a her şeyi ver"
    │                              ...                        │
    └─────────────────────────────────────────────────────────┘
                               │
-                              ▼  prompt'a tıkıştırıldı
-              ✗ context patladı · ✗ cost fırladı · ✗ relevance gürültüde kayboldu
+                              ▼  hepsi prompt'a tıkıştırıldı
+              ✗ bağlam patladı · ✗ maliyet fırladı · ✗ alaka gürültüde kayboldu
 
 
 RAG (CodeWikiTap'in yaptığı)
 
-   54k token Next.js doc'u
+   54k token Next.js dokümanı
           │
-          ▼  heading sınırlarında chunk'landı (canonical tree)
-   ~200 chunk × ~250 token
+          ▼  başlık sınırlarında parçalandı (canonical tree)
+   ~200 parça × ~250 token
           │
           ▼  cache.db'ye bir kez indekslendi
    BM25 (FTS5) ┐
-               ├──► RRF fusion ──► cross-encoder rerank
+               ├──► RRF füzyonu ──► cross-encoder yeniden sıralama
    dense vec  ─┘                              │
                                               ▼
-                          top-K chunk (~5 × ~250 tok ≈ 1,2k tok)
+                          en alakalı K parça (~5 × ~250 tok ≈ 1,2k tok)
                                               │
                                               ▼
-                          agent'a citation ile teslim edildi
+                          agent'a kaynak gösterilerek teslim edildi
               ✓ odaklı · ✓ ucuz · ✓ denetlenebilir · ✓ doğrulanabilir
 ```
 
-### Neden hybrid (BM25 + vector), tek değil?
+### Neden hibrit (BM25 + vektör), tek başına biri değil?
 
-- BM25 tek başına paraphrase'leri kaçırır — "data fetching" sorgusu "remote data loading" başlığını yakalamaz.
-- Vector tek başına tam-eşleşmesi gereken sembolleri kaçırır — `useEffect` veya `revalidateTag` için keyword kesinliği şart.
-- Reciprocal Rank Fusion (RRF, k=60) ile birleştirildiğinde her iki yöntemin kör noktası baskın olmaz. Cross-encoder rerank sonradan top adaylar üzerinde tam-attention çalıştırıp her iki yöntemden artakalan sıralama hatalarını da düzeltir.
+- BM25 tek başına eşanlamlıları kaçırır — "data fetching" sorgusu "remote data loading" başlığını yakalamaz.
+- Vektör tek başına tam eşleşme gereken sembolleri kaçırır — `useEffect` ya da `revalidateTag` için keyword kesinliği şarttır.
+- Reciprocal Rank Fusion (RRF, k=60) ile birleştirildiğinde her iki yöntemin kör noktası baskın olamaz. Cross-encoder yeniden sıralama, en üstteki adaylar üzerinde tam dikkatle çalışıp her iki yöntemden kalan sıralama hatalarını da düzeltir.
 
-Sonuçta agent'a giden context yükü naif enjeksiyona göre kabaca **40–80× daha küçük**, ölçülebilir biçimde daha yüksek recall ile (regression-locked floor'lar için: `tests/eval/` → `NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80`).
+Sonuçta agent'a giden bağlam yükü, ham içeriği olduğu gibi göndermekten kabaca **40–80 kat daha küçük** olur ve isabet ölçülebilir biçimde daha yüksektir (eşikler `tests/eval/` altında kilitli: `NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80`).
 
 ## Ne *değildir*
 
-- **Bir AI modeli değildir.** İçinde bundle'lı model yok. CodeWikiTap, agent'ın zaten kullandığı AI'a giden **context kalitesini** iyileştirir.
-- **Dokümantasyon üreticisi değildir.** İçerik burada üretilmez. Google CodeWiki'nin Gemini ile ürettiği dokümantasyon fetch'lenir.
-- **Cloud servisi değildir.** Hiçbir şey makinenden çıkmaz. Lokal SQLite cache, lokal ONNX inference, sıfır telemetri.
-- **Google ile bağlantılı değildir.** Bağımsız open-source proje; "CodeWiki" adı yalnızca upstream veri kaynağı olarak betimleyici şekilde geçer.
-- **Private repo için değildir.** Google CodeWiki şu an yalnız public GitHub repolarını kapsar; private erişim waitlist'teki bir Gemini CLI extension'ının arkasında.
+- **Bir yapay zeka modeli değildir.** Paketin içinde gömülü bir model yoktur. CodeWikiTap, agent'ınızın zaten kullandığı yapay zekaya giden **bağlamın kalitesini** iyileştirir.
+- **Bir dokümantasyon üreticisi değildir.** İçerik burada üretilmez; Google CodeWiki'nin Gemini ile ürettiği dokümantasyon çekilir.
+- **Bir bulut servisi değildir.** Hiçbir veri bilgisayarınızdan çıkmaz. Yerel SQLite önbelleği, yerel ONNX çıkarımı, sıfır telemetri.
+- **Google'a ait değildir.** Bağımsız bir açık kaynak projedir; "CodeWiki" adı yalnızca veri kaynağını belirtmek için kullanılır.
+- **Özel depolar için uygun değildir.** Google CodeWiki şu anda yalnızca herkese açık GitHub depolarını kapsıyor; özel erişim, bekleme listesindeki bir Gemini CLI eklentisinin arkasında.
 
 ---
 
-Sıradaki: [Kurulum](/tr/guide/kurulum) — CodeWikiTap'i agent'ına nasıl bağlarsın.
+Sıradaki: [Kurulum](/tr/guide/kurulum) — CodeWikiTap'i agent'ınıza nasıl bağlarsınız.

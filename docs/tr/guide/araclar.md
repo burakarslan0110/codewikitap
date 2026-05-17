@@ -1,20 +1,20 @@
 # 5 araç
 
-Bunları sen çağırmazsın — agent çağırır. Liste bilerek kısa tutulmuş; her birinin ne yaptığını bilmek agent'ın muhakemesini okurken işe yarar.
+Bu araçları siz çağırmazsınız — agent çağırır. Liste bilerek kısa tutulmuştur; her birinin ne yaptığını bilmek, agent'ın akıl yürütmesini okurken işinize yarar.
 
-::: tip Kilitli yüzey
-Server tam olarak **beş tool** kaydeder. `buildServer()` içindeki regex `search`, `ask`, `query`, `generate`, `index`, `write` içeren her ismi reddeder — hiçbir plugin veya hook API'yi sessizce genişletemez. `get_page` tek non-readonly tool'dur (`prepareOnly: true` branch'i HTTP fetch + sqlite write yapar).
+::: tip Sabit yüzey
+Sunucu tam olarak **beş araç** kaydeder. `buildServer()` içindeki regex `search`, `ask`, `query`, `generate`, `index` veya `write` içeren her ismi reddeder — hiçbir eklenti veya kanca API'yi sessizce genişletemez. `get_page` tek yazma yetkili araçtır (`prepareOnly: true` dalı HTTP isteği yapar ve sqlite'a yazar).
 :::
 
 ## 1. `list_project_dependencies` — temel
 
-Session başında, otomatik, bir kez çağrılır. Agent ilk düşüncesinden önce tam kapsam raporunu alır.
+Oturum başında, otomatik olarak ve bir kez çağrılır. Agent ilk düşüncesinden önce eksiksiz bir kapsam raporunu eline alır.
 
 ```
-   Session başı
+   Oturum başı
         │
         ▼
-   Manifest tara  ──►  Repo çöz  ──►  CodeWiki kapsamı yokla
+   Manifest'i tara  ──►  Depoyu çöz  ──►  CodeWiki kapsamını kontrol et
         │
         ▼
    [
@@ -28,7 +28,7 @@ Session başında, otomatik, bir kez çağrılır. Agent ilk düşüncesinden ö
 
 ## 2. `resolve_repo` — ad → `owner/repo`
 
-Agent slug'ı zaten biliyorsa atlanır. Kullanıcı "react'in dokümanına bak" dediğinde resolver `react` → `facebook/react` map'ini yapar.
+Agent depo adresini zaten biliyorsa bu adım atlanır. Kullanıcı "react'in dokümanına bak" dediğinde çözücü `react` → `facebook/react` eşlemesini yapar.
 
 ```
    "react"  ─►  npm registry  ─►  repository.url  ─►  facebook/react
@@ -36,99 +36,99 @@ Agent slug'ı zaten biliyorsa atlanır. Kullanıcı "react'in dokümanına bak" 
    "rails"  ─►  RubyGems      ─►  source_code_uri ─►  rails/rails
 ```
 
-Registry'de GitHub repository URL'i yoksa `status: "no_match"` döner.
+Registry'de GitHub deposu URL'i yoksa `status: "no_match"` döner.
 
-## 3. `get_page` — sayfa, sub-section, içindekiler veya pre-warm
+## 3. `get_page` — sayfa, alt bölüm, içindekiler ya da ön ısıtma
 
-Tek bir tool'dan üç mod:
+Tek araçtan üç ayrı kip:
 
 ```
-   Input:  { owner, repo, slug?, subsection?, listPages?, prepareOnly? }
+   Girdi:  { owner, repo, slug?, subsection?, listPages?, prepareOnly? }
         │
-        ├─ listPages: true ──► içindekiler dönüyor:
+        ├─ listPages: true ──► içindekiler döner:
         │                        [{ slug, title, level, parentSlug, hasDiagrams }, ...]
         │
-        ├─ prepareOnly: true ─► arka planda indexer'ı başlatır,
+        ├─ prepareOnly: true ─► arka planda indeksleyiciyi başlatır,
         │                        { status: "ready" | "index_building" } döner
         │
-        ▼  (varsayılan — sayfayı çek)
-   cache.db hit?
+        ▼  (varsayılan — sayfayı getir)
+   cache.db'de var mı?
         ├─ taze (≤ 24 saat)  ─►  hemen döndür
-        ├─ süresi geçmiş     ─►  SHA probe: aynı commit mi?
-        │                          ├─ evet ─► TTL'i yenile, cache'i döndür
-        │                          └─ hayır ─► sayfayı yeniden çek
-        └─ miss              ─►  Playwright → canonical tree → Markdown
+        ├─ süresi geçmiş     ─►  SHA kontrolü: commit aynı mı?
+        │                          ├─ evet ─► TTL'i tazele, önbelleği döndür
+        │                          └─ hayır ─► sayfayı baştan getir
+        └─ yok               ─►  Playwright → canonical tree → Markdown
         │
         ▼
-   Markdown + diagram'lar + kod + citation footer (byte-equal, assert'li)
+   Markdown + diyagramlar + kod + kaynak alt bilgisi (değişmez, testle doğrulanmış)
 ```
 
-`get_page` **tek non-readonly tool**'dur. `prepareOnly: true` branch'i HTTP fetch + sqlite write yapar; CodeWiki'nin origin başına 4 saniyede 1 sayfa rate-limit'ine tabidir. v0.6'daki `request_indexing` tool'u v0.7'de bu branch'in içine alındı.
+`get_page` **tek yazma yetkili araçtır**. `prepareOnly: true` dalı HTTP isteği yapar ve sqlite'a yazar; her kaynak için 4 saniyede 1 sayfa hız sınırına tabidir. v0.6'daki `request_indexing` aracı, v0.7'de bu dalın içine alındı.
 
-## 4. `find_chunks` — esas iş yükü (hybrid RAG)
+## 4. `find_chunks` — esas iş yükü (hibrit RAG)
 
-Hybrid retrieval pipeline. Her chunk'la beraber beş skor döner: `vectorScore`, `bm25Score`, `rrfScore`, `rerankScore` artı iki pre-fusion rank. Agent (veya sen) "bu chunk neden döndü?" diye merak ettiğinde cevap tamamen incelenebilir.
+Hibrit arama akışı. Her parçayla beraber beş ayrı puan döner: `vectorScore`, `bm25Score`, `rrfScore`, `rerankScore` ve füzyon öncesi iki sıralama bilgisi. Agent (veya siz) "bu parça neden döndü?" diye sorduğunuzda cevap tamamen incelenebilir.
 
-**Off-project sorgu.** `repo` parametresini boş bırakırsan zaten indekslenmiş bütün repolarda arar. Henüz bağımlılığın olmayan bir repo'yu CodeWiki'ye sormak istersen 3 tool'u compose et:
+**Proje dışı sorgu.** `repo` parametresini boş bırakırsanız hâlihazırda indekslenmiş tüm depolarda arama yapılır. Henüz bağımlılığınız olmayan bir depoya CodeWiki üzerinden sormak isterseniz üç aracı birlikte kullanın:
 
 ```
    resolve_repo({ query: "react" })                              → { owner: "facebook", repo: "react" }
    get_page({ repo: "facebook/react", prepareOnly: true })       → { status: "ready" | "index_building" }
    find_chunks({ query: "rules of hooks", repo: "facebook/react" })
-                                                                 → citation'lı ranked chunks
+                                                                 → kaynak gösterimli sıralı parçalar
 ```
 
-Reranker erişilemezken (download timeout, runtime error, circuit-breaker açık) sonuç yine döner — sadece vector benzerliğine göre sıralı ve `degraded: true` etiketli olarak.
+Yeniden sıralayıcıya ulaşılamadığında (indirme zaman aşımı, çalışma zamanı hatası, devre kesici açık) sonuç yine döner — sadece vektör benzerliğine göre sıralı ve `degraded: true` etiketiyle.
 
-## 5. `find_neighbors` — knowledge graph traversal
+## 5. `find_neighbors` — bilgi grafı gezinti
 
-Beş kayıtlı edge tipi + query-zamanı türetilen `dep_link`:
+Beş kayıtlı bağlantı türü + sorgu zamanında türetilen `dep_link`:
 
 ```
-   code_ref         sayfa  ──refers──►  source file
-   diagram_edge     node   ──edge────►  node             (diagram içinde)
-   diagram_member   node   ──in──────►  diagram cluster
+   code_ref         sayfa  ──refers──►  kaynak dosya
+   diagram_edge     düğüm  ──edge────►  düğüm            (diyagram içinde)
+   diagram_member   düğüm  ──in──────►  diyagram kümesi
    section_link     bölüm  ──anchor──►  bölüm            (aynı sayfa)
-   cross_repo_ref   sayfa  ──cites───►  dış repo
+   cross_repo_ref   sayfa  ──cites───►  dış depo
    ──────────────────────────────────────────────────────────────────────
-   dep_link         proje  ──uses────►  indexed repo     (query-zamanı türetilir)
+   dep_link         proje  ──uses────►  indekslenmiş depo     (sorgu zamanı)
 ```
 
-İsteğe bağlı `query` parametresi verildiğinde komşular semantik benzerliğe göre yeniden sıralanır — mevcut embedder kullanılır, ayrı model yok. `CODEWIKI_DISABLE_KG=1` ile `find_neighbors` tamamen kayıttan düşer (rollback path).
+İsteğe bağlı `query` parametresi verildiğinde komşular semantik benzerliğe göre yeniden sıralanır — mevcut embedder kullanılır, ayrı bir model gerekmez. `CODEWIKI_DISABLE_KG=1` verilirse `find_neighbors` tamamen kayıttan düşer (geri dönüş yolu).
 
-## Status envelope'ları
+## Durum zarfları
 
-Bazı tool'lar throw etmek yerine fail-soft döner. Sonuçtaki `status` alanı agent'a ne yapacağını söyler:
+Bazı araçlar hata fırlatmak yerine yumuşak başarısızlıkla döner. Sonuçtaki `status` alanı agent'a ne yapacağını söyler:
 
 | Status | Anlamı |
 |---|---|
 | `ok` | Varsayılan başarı (genelde gösterilmez). |
-| `no_docs` | Repo'da CodeWiki kapsamı yok. Sonuç alternatif URL'ler (GitHub, npm) içeren bir `fallbacks` array'i taşır. |
-| `no_match` | `resolve_repo` registry metadata'sında GitHub URL bulamadı. |
-| `rate_limited` | Upstream backoff. Sonuç `retryAfterSeconds` içerir. |
+| `no_docs` | Depoda CodeWiki kapsamı yok. Sonuç, alternatif URL'ler (GitHub, npm) içeren bir `fallbacks` dizisi taşır. |
+| `no_match` | `resolve_repo`, registry metadata'sında GitHub URL'i bulamadı. |
+| `rate_limited` | Üst kaynaktan hız sınırı. Sonuç `retryAfterSeconds` içerir. |
 | `retry` | Geçici hata. Sonuç `retryAfterSeconds` içerir. |
-| `index_building` | Indexer `INDEX_BUILD_TIMEOUT_MS`'i aştı. Boş sonuç; client kısa süre sonra retry etmeli. |
-| `degraded` | Reranker fallback'e düştü; sonuçlar yine geldi (status enum'ı değil, sonuç üzerinde boolean alan). |
+| `index_building` | İndeksleyici `INDEX_BUILD_TIMEOUT_MS` süresini aştı. Boş sonuç; istemci kısa süre sonra tekrar denemeli. |
+| `degraded` | Yeniden sıralayıcı yedek yola düştü; sonuçlar yine geldi (durum enum'ı değil, sonucun üzerinde boolean bir alandır). |
 
-Sert hatalar (validation, programmer error, infrastructure failure) throw edilir — MCP SDK throw'u `isError: true`'ya çevirir.
+Sert hatalar (doğrulama hatası, programcı hatası, altyapı hatası) `throw` ile fırlatılır — MCP SDK bunu `isError: true` cevabına çevirir.
 
 ## Gerçek senaryolar
 
-### Senaryo 1 — Next.js cache muamması
+### Senaryo 1 — Next.js cache bilmecesi
 
-> *"Bu component'te `revalidatePath` çağrım neden cache'lenmiş fetch'i yenilemiyor?"*
+> *"Bu component'te `revalidatePath` çağrım neden cache'lenmiş fetch'i tazelemiyor?"*
 
 ```
-   Agent'ın muhakemesi (tool trace'lerinden görünür):
+   Agent'ın akıl yürütmesi (araç akışından görünür):
    ─────────────────────────────────────────────────────────────
-   1. (session başında) list_project_dependencies bana söyledi:
-      next → vercel/next.js, 18 sayfa indexli.
+   1. (oturum başında) list_project_dependencies şunu söyledi:
+      next → vercel/next.js, 18 sayfa indekslendi.
 
    2. find_chunks({
         query: "revalidatePath cached fetch server component",
         repos: ["vercel/next.js"]
       })
-      ► top chunk: "On-demand revalidation" bölümü,
+      ► en alakalı parça: "On-demand revalidation" bölümü,
         rrfScore 0.84, rerankScore 9.2.
 
    3. get_page({
@@ -140,38 +140,38 @@ Sert hatalar (validation, programmer error, infrastructure failure) throw edilir
 
    4. find_neighbors({ source: "node", id: "RouteCache" })
       ► RouteCache ─► FullRouteCache, DataCache, RouterCache,
-                       RequestMemoization (hepsi citation'lı).
+                       RequestMemoization (hepsi kaynak gösterimli).
    ─────────────────────────────────────────────────────────────
    Cevap (özet):
-     "revalidatePath(path) tek başına yalnız route segment cache'i
-     invalidate eder. force-cache fetch'in Data Cache'te yaşar ve
-     bağımsız key'lenir. İki cache'i de temizlemek için
-     revalidatePath(path, 'page') kullan veya fetch'i tag'leyip
-     revalidateTag(tag) çağır.  — kaynak commit a1b2c3d'ye pinli"
+     "revalidatePath(path) tek başına yalnızca route segment cache'ini
+     geçersiz kılar. force-cache fetch'iniz Data Cache içinde durur ve
+     ayrı bir anahtarla saklanır. İki cache'i de temizlemek için
+     revalidatePath(path, 'page') kullanın ya da fetch'inizi tag'leyip
+     revalidateTag(tag) çağırın.  — kaynak: commit a1b2c3d"
 ```
 
-### Senaryo 2 — Tanımadığın bir kütüphaneye onboarding
+### Senaryo 2 — Tanımadığınız bir kütüphaneye onboarding
 
-> *"Projeye az önce `tanstack-query` ekledim. Beni gezdir."*
+> *"Projeye az önce `tanstack-query` ekledim. Beni biraz gezdir."*
 
 ```
-   Agent'ın tool akışı:
+   Agent'ın araç akışı:
      resolve_repo("@tanstack/react-query")             → TanStack/query
-     get_page({ owner, repo, prepareOnly: true })      → pre-warm
+     get_page({ owner, repo, prepareOnly: true })      → ön ısıt
      get_page({ owner, repo, listPages: true })        → 14 sayfa
-     find_chunks({ query: "core concepts",             → 5 chunk
+     find_chunks({ query: "core concepts",             → 5 parça
                    repo: "TanStack/query", k: 5 })
      get_page({ owner, repo, slug: "guides/important-defaults" })
 
    Kullanıcının gördüğü:
-     Citation ile yüklü, grounded bir tur — "query", "mutation",
-     "staleTime vs gcTime", "queryClient invalidation" — az önce
-     install'ladığı commit'e pinli olarak.
+     Kaynak gösterimli, gerçek dosyalara dayanan bir tur — "query",
+     "mutation", "staleTime vs gcTime", "queryClient invalidation"
+     — tam da az önce kurduğunuz commit'e sabitlenerek.
 ```
 
-### Senaryo 3 — Knowledge graph ile mimari keşif
+### Senaryo 3 — Bilgi grafıyla mimari keşif
 
-> *"Prisma client'ında data flow'u göster."*
+> *"Prisma client'ında veri akışını göster."*
 
 ```
    find_neighbors({ source: "page",
@@ -181,25 +181,25 @@ Sert hatalar (validation, programmer error, infrastructure failure) throw edilir
         ▼
    QueryEngine ─► Request ─► Connector ─► Driver ─► Database
         │          │           │           │
-        └──────────┴───────────┴───────────┴──► hepsinin yanında
-                                                 belirli source file'lara
-                                                 citation (code_ref edge)
+        └──────────┴───────────┴───────────┴──► her birinin yanında
+                                                 belirli kaynak dosyalara
+                                                 kaynak gösterimi (code_ref)
 ```
 
-Agent gerçek modül isimleriyle bir mimari özet derler — genel ORM gevezeliği değil, gerçek dosya isimleriyle.
+Agent gerçek modül isimleriyle bir mimari özet derler — genel ORM gevezeliği değil, somut dosya isimleriyle.
 
-### Senaryo 4 — Derin daldan önce pre-warm
+### Senaryo 4 — Derin daldan önce ön ısıtma
 
-> *"Bu öğleden sonra auth flow'u refactor edeceğim. `next-auth`, `lucia` ve `iron-session` doc'ları hazır olsun."*
+> *"Bu öğleden sonra auth flow'unu yeniden yazacağım. `next-auth`, `lucia` ve `iron-session` dokümanları hazır olsun."*
 
 ```
    for repo in [nextauthjs/next-auth, lucia-auth/lucia, vvo/iron-session]:
        get_page({ owner, repo, prepareOnly: true })
    ─────────────────────────────────────────────────────────────
-   ~12 saniye sonra üç index cache.db'de sıcak. Sonraki her
-   find_chunks çağrısı <50 ms'de döner, cold start yok.
+   Yaklaşık 12 saniye sonra üç indeks cache.db içinde sıcak. Sonraki
+   her find_chunks çağrısı 50 ms'in altında döner; soğuk başlangıç yok.
 ```
 
 ---
 
-Sıradaki: [Yapılandırma](/tr/guide/yapilandirma) — environment variable'lar, sorun giderme ve operator knob'ları.
+Sıradaki: [Yapılandırma](/tr/guide/yapilandirma) — ortam değişkenleri, sorun giderme ve operatör ayarları.

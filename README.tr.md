@@ -5,7 +5,7 @@
 <h1 align="center">CodeWikiTap</h1>
 
 <p align="center">
-  <strong>Google CodeWiki dokümantasyonunu kodlama agent'ına RAG ile akıtan <em>unofficial</em> bir MCP server'ı — parçalanmış, kaynak gösterilmiş, paketin pinli olduğu commit SHA'sına sabitlenmiş şekilde.</strong>
+  <strong>Google CodeWiki dokümantasyonunu kodlama agent'ına taşıyan <em>resmi olmayan</em> bir MCP sunucusu. İçerik parçalara bölünüp kaynağıyla birlikte, paketinizin sabitlendiği commit'e dayanarak getirilir.</strong>
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  📚 <strong><a href="https://burakarslan0110.github.io/codewikitap-mcp/tr/">Tam dokümantasyon</a></strong> — kavramlar, mimari, 5 araç, yapılandırma referansı, sorun giderme.
+  📚 <strong><a href="https://burakarslan0110.github.io/codewikitap-mcp/tr/">Tüm dokümantasyon</a></strong> — kavramlar, mimari, araçlar, yapılandırma ve sorun giderme.
 </p>
 
 ```bash
@@ -36,17 +36,17 @@ npx codewikitap install
   <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/logo-mark.png" alt="CodeWikiTap logosu" width="360"/>
 </p>
 
-Makinende lokal çalışan küçük bir Node programı — bir [**MCP server**](https://modelcontextprotocol.io). Kodlama agent'ın (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) onunla stdio üzerinden konuşur ve server **5 araç** sunar; agent ihtiyaç duyduğu anda [Google CodeWiki](https://codewiki.google) dokümantasyonunu context'ine çekebilir — heading sınırlarında parçalanmış, hybrid BM25 + vector + cross-encoder rerank ile skorlanmış, byte-equal citation footer ile damgalanmış olarak.
+CodeWikiTap, bilgisayarınızda yerel olarak çalışan küçük bir Node uygulamasıdır; bir [**MCP sunucusu**](https://modelcontextprotocol.io). Kullandığınız kodlama agent'ı (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) bu sunucuyla stdio üzerinden konuşur. Sunucu agent'a **beş araç** sunar; agent ihtiyaç duyduğu anda [Google CodeWiki](https://codewiki.google) dokümantasyonunu kendi bağlamına çekebilir. İçerik başlık sınırlarında parçalara bölünmüş, BM25 + vektör arama + cross-encoder yeniden sıralama ile puanlanmış ve her parçanın altına kaynağa bağlanan değişmez bir alt bilgi eklenmiş olarak gelir.
 
 ```
-   ┌─────────────────┐  stdio    ┌──────────────────┐  hybrid retrieval   ┌────────────────┐
-   │ Kodlama agent'ı │ ────────► │   CodeWikiTap    │ ──────────────────► │ Google CodeWiki │
-   │ soru sorar      │           │  (lokal server)  │  cache'li, SHA-pinli│ (yalnız public) │
-   └─────────────────┘           └──────────────────┘                     └────────────────┘
-                                  API key yok · telemetri yok
+   ┌─────────────────┐  stdio    ┌──────────────────┐  hibrit arama       ┌──────────────────┐
+   │ Kodlama agent'ı │ ────────► │   CodeWikiTap    │ ──────────────────► │ Google CodeWiki  │
+   │ soru sorar      │           │  (yerel sunucu)  │  önbellekli, sabit  │ (yalnız public)  │
+   └─────────────────┘           └──────────────────┘                     └──────────────────┘
+                                  API anahtarı yok · telemetri yok
 ```
 
-**Neden RAG, "doğrudan doc'u fetch'le" değil?** Tipik bir CodeWiki sayfası 2–4 k token; Next.js'in tek başına 18 sayfası var. Naif enjeksiyon, daha soruyu okumadan context bütçesini patlatır. CodeWikiTap her biri ~250 token'lık ~5 chunk döndürür — yaklaşık **40–80× daha küçük** ve daha yüksek recall ile (regression-locked: `NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80`).
+**Neden hazır içeriği doğrudan vermek yerine RAG?** Tipik bir CodeWiki sayfası 2–4 bin token tutuyor; tek başına Next.js'in 18 sayfası var. Hepsini olduğu gibi bağlama doldurmak, daha ilk soruya gelmeden bütçenizi tüketir. CodeWikiTap bunun yerine ortalama 250 token'lık 5 küçük parça döndürür — **40–80 kat daha küçük** bir yük, ölçülebilir biçimde daha yüksek isabet (`NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80` eşikleri test ile kilitli).
 
 ## Hızlı kurulum
 
@@ -54,38 +54,38 @@ Makinende lokal çalışan küçük bir Node programı — bir [**MCP server**](
 npx codewikitap install
 ```
 
-İnteraktif sihirbaz target ve scope sorar, diff gösterir ve config'i atomik olarak `.bak` yedeğiyle yazar. Script kullanımı için:
+Adım adım soran sihirbaz hangi agent'ı ve hangi kapsamı kullanmak istediğinizi sorar, değişikliği gösterir, onay aldıktan sonra yapılandırma dosyasını `.bak` yedeğini bırakarak atomik biçimde yazar. Komut satırından çalıştırmak isterseniz:
 
 ```bash
 npx codewikitap install --target=claude-code --scope=user --yes
 ```
 
-| Agent | Config yolu |
+| Agent | Yapılandırma dosyası |
 |---|---|
-| Claude Code | `~/.claude/mcp.json` veya proje `.mcp.json` (veya [plugin marketplace](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum#claude-code)) |
-| Cursor | `~/.cursor/mcp.json` veya `<proje>/.cursor/mcp.json` |
-| VS Code | `<proje>/.vscode/mcp.json` veya platforma göre user dir (Linux `~/.config/Code/User/mcp.json`, macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`) |
+| Claude Code | `~/.claude/mcp.json` ya da projedeki `.mcp.json` (alternatif olarak [plugin marketplace](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum#claude-code)) |
+| Cursor | `~/.cursor/mcp.json` ya da `<proje>/.cursor/mcp.json` |
+| VS Code | `<proje>/.vscode/mcp.json` ya da işletim sistemine göre kullanıcı dizini (Linux `~/.config/Code/User/mcp.json`, macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`) |
 | Codex CLI | `~/.codex/config.toml` |
 | Gemini CLI | `~/.gemini/settings.json` |
 | Qwen Code | `~/.qwen/settings.json` |
-| opencode | `opencode.json` veya `~/.config/opencode/opencode.json` |
+| opencode | `opencode.json` ya da `~/.config/opencode/opencode.json` |
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` |
 | Antigravity | `~/.gemini/antigravity/mcp_config.json` |
 
-Agent başına tam config blokları [Kurulum kılavuzu](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum)'nda.
+Her agent için tam yapılandırma blokları [Kurulum kılavuzunda](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum).
 
-**Gereksinimler:** Node ≥ 22.5, ~150 MB disk (Playwright shell + ONNX modelleri + cache). İlk çalıştırma `chromium-headless-shell` (~30 MB) ve embedder/reranker modellerini (~50 MB) indirir — ikisi de tek seferlik, kalıcı cache'lenir.
+**Sistem gereksinimleri:** Node 22.5 ve üzeri, yaklaşık 150 MB boş alan (Playwright shell + ONNX modelleri + önbellek). İlk açılışta `chromium-headless-shell` (~30 MB) ve gömme/yeniden sıralama modelleri (~50 MB) indirilir; her ikisi de tek seferlik bir işlemdir ve diskte kalıcı olarak saklanır.
 
-## Örnek — Next.js cache muamması
+## Örnek — Next.js cache bilmecesi
 
-> *"`revalidatePath` çağrım neden cache'lenmiş fetch'i yenilemiyor?"*
+> *"`revalidatePath` çağrım neden cache'lenmiş fetch'i tazelemiyor?"*
 
 ```
-   Agent'ın tool trace'i
+   Agent'ın araç akışı
    ──────────────────────────────────────────────────────────
-   1. list_project_dependencies  → next → vercel/next.js, 18 sayfa indexli
+   1. list_project_dependencies  → next → vercel/next.js, 18 sayfa hazır
    2. find_chunks({ query: "revalidatePath cached fetch", repos: ["vercel/next.js"] })
-                                 → top chunk: "On-demand revalidation",
+                                 → en alakalı parça: "On-demand revalidation",
                                    rrfScore 0.84, rerankScore 9.2
    3. get_page({ slug: "app-router/caching", subsection: "on-demand-revalidation" })
                                  → revalidatePath(path, type) imzasıyla tam Markdown
@@ -93,33 +93,33 @@ Agent başına tam config blokları [Kurulum kılavuzu](https://burakarslan0110.
                                  → FullRouteCache, DataCache, RouterCache, RequestMemoization
    ──────────────────────────────────────────────────────────
    Cevap:
-     "revalidatePath(path) tek başına yalnız route segment cache'i invalidate eder.
-      force-cache fetch'in Data Cache'te yaşar — revalidatePath(path, 'page') kullan
-      veya fetch'i tag'leyip revalidateTag(tag) çağır.   — commit a1b2c3d'ye pinli"
+     "revalidatePath(path) tek başına yalnızca route segment cache'ini geçersiz kılar.
+      force-cache fetch'iniz Data Cache'te durur — revalidatePath(path, 'page') çağırın
+      ya da fetch'i tag'leyip revalidateTag(tag) kullanın.   — kaynak: commit a1b2c3d"
 ```
 
-Daha fazla örnek [Araçlar kılavuzu](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/araclar#gercek-senaryolar)'nda.
+Daha fazla örnek için [Araçlar kılavuzuna](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/araclar#gercek-senaryolar) bakın.
 
 ## Desteklenen projeler
 
-**Dokuz ecosystem**, on beş manifest parser: JavaScript / TypeScript, Python, Go, Rust, PHP, Java (Maven), Java (Gradle), Ruby, .NET. Workspace traversal, BOM imports, parent POM resolution mevcut. Tam matris → [Kurulum kılavuzu](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum#desteklenen-proje-turleri).
+Dokuz ekosistem ve toplam on beş manifest okuyucu: JavaScript / TypeScript, Python, Go, Rust, PHP, Java (Maven), Java (Gradle), Ruby ve .NET. Monorepo workspace'leri, BOM içe aktarımları ve üst POM çözümleri destekleniyor. Tüm liste için [Kurulum kılavuzuna](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum#desteklenen-proje-turleri) bakın.
 
 ## Ne *değildir*
 
-- **Bir AI modeli değildir.** İçinde bundle'lı model yok. CodeWikiTap, agent'ın zaten kullandığı AI'a giden **context kalitesini** iyileştirir.
-- **Cloud servisi değildir.** Hiçbir şey makinenden çıkmaz. Lokal SQLite, lokal ONNX inference, sıfır telemetri.
-- **Google ile bağlantılı değildir.** Bağımsız open-source proje; "CodeWiki" adı yalnızca veri kaynağı olarak betimleyici şekilde geçer.
-- **Private repo için değildir.** Google CodeWiki şu an yalnız public GitHub repolarını kapsar.
+- **Bir yapay zeka modeli değildir.** Paketin içinde gömülü bir model yoktur; CodeWikiTap zaten kullandığınız agent'ın yapay zekasına giden **bağlamın kalitesini** iyileştirir.
+- **Bir bulut servisi değildir.** Hiçbir veri bilgisayarınızdan dışarı çıkmaz. Yerel SQLite önbelleği, yerel ONNX çıkarımı, sıfır telemetri.
+- **Google'a ait değildir.** Bağımsız bir açık kaynak projedir; "CodeWiki" adı yalnızca veri kaynağını belirtmek için kullanılır.
+- **Özel (private) depolar için uygun değildir.** Google CodeWiki şu anda yalnızca herkese açık GitHub depolarını kapsıyor.
 
-## Daha fazla
+## Daha fazla bilgi
 
-- 📚 **[Dokümantasyon](https://burakarslan0110.github.io/codewikitap-mcp/tr/)** — kavramlar, mimari, 5 araç, yapılandırma referansı
-- 📜 **[CHANGELOG](CHANGELOG.md)** — neyin ne zaman değiştiği
-- 🤝 **[Katkı](CONTRIBUTING.md)** — pnpm toolchain, test akışı, release süreci
-- 🔐 **[Güvenlik](SECURITY.md)** — açıklıkları lütfen public issue olarak açma
+- 📚 **[Dokümantasyon](https://burakarslan0110.github.io/codewikitap-mcp/tr/)** — kavramlar, mimari, araçlar, yapılandırma referansı
+- 📜 **[CHANGELOG](CHANGELOG.md)** — sürüm geçmişi
+- 🤝 **[Katkı rehberi](CONTRIBUTING.md)** — pnpm araç zinciri, test akışı, sürüm süreci
+- 🔐 **[Güvenlik](SECURITY.md)** — güvenlik açıklarını lütfen herkese açık issue olarak bildirmeyin
 
 ## Lisans
 
 [MIT](LICENSE) — © 2026 Burak Arslan.
 
-> CodeWikiTap bağımsız, **unofficial** bir projedir. Google ile bağlantılı değildir; Google tarafından onaylanmamış veya desteklenmemiştir. "CodeWiki" adı yalnızca upstream veri kaynağı olarak betimleyici şekilde geçer.
+> CodeWikiTap bağımsız ve **resmi olmayan** bir projedir; Google ile herhangi bir bağı yoktur, Google tarafından onaylanmamıştır. "CodeWiki" adı yalnızca üst kaynaktaki içeriği belirtmek amacıyla kullanılmaktadır.
