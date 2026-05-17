@@ -62,7 +62,7 @@ npx codewikitap install --target=claude-code --scope=user --yes
 
 | Agent | Yapılandırma dosyası |
 |---|---|
-| Claude Code | `~/.claude/mcp.json` ya da projedeki `.mcp.json` (alternatif olarak [plugin marketplace](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum#claude-code)) |
+| Claude Code | `~/.claude/mcp.json` ya da projedeki `.mcp.json` (alternatif olarak [plugin marketplace](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/installation#claude-code)) |
 | Cursor | `~/.cursor/mcp.json` ya da `<proje>/.cursor/mcp.json` |
 | VS Code | `<proje>/.vscode/mcp.json` ya da işletim sistemine göre kullanıcı dizini (Linux `~/.config/Code/User/mcp.json`, macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`) |
 | Codex CLI | `~/.codex/config.toml` |
@@ -72,7 +72,7 @@ npx codewikitap install --target=claude-code --scope=user --yes
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` |
 | Antigravity | `~/.gemini/antigravity/mcp_config.json` |
 
-Her agent için tam yapılandırma blokları [Kurulum kılavuzunda](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum).
+Her agent için tam yapılandırma blokları [Kurulum kılavuzunda](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/installation).
 
 **Sistem gereksinimleri:** Node 22.5 ve üzeri, yaklaşık 150 MB boş alan (Playwright shell + ONNX modelleri + önbellek). İlk açılışta `chromium-headless-shell` (~30 MB) ve gömme/yeniden sıralama modelleri (~50 MB) indirilir; her ikisi de tek seferlik bir işlemdir ve diskte kalıcı olarak saklanır.
 
@@ -98,11 +98,11 @@ Her agent için tam yapılandırma blokları [Kurulum kılavuzunda](https://bura
       ya da fetch'i tag'leyip revalidateTag(tag) kullanın.   — kaynak: commit a1b2c3d"
 ```
 
-Daha fazla örnek için [Araçlar kılavuzuna](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/araclar#gercek-senaryolar) bakın.
+Daha fazla örnek için [Araçlar kılavuzuna](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/tools#gercek-senaryolar) bakın.
 
 ## Desteklenen projeler
 
-Dokuz ekosistem ve toplam on beş manifest okuyucu: JavaScript / TypeScript, Python, Go, Rust, PHP, Java (Maven), Java (Gradle), Ruby ve .NET. Monorepo workspace'leri, BOM içe aktarımları ve üst POM çözümleri destekleniyor. Tüm liste için [Kurulum kılavuzuna](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/kurulum#desteklenen-proje-turleri) bakın.
+Dokuz ekosistem ve toplam on beş manifest okuyucu: JavaScript / TypeScript, Python, Go, Rust, PHP, Java (Maven), Java (Gradle), Ruby ve .NET. Monorepo workspace'leri, BOM içe aktarımları ve üst POM çözümleri destekleniyor. Tüm liste için [Kurulum kılavuzuna](https://burakarslan0110.github.io/codewikitap-mcp/tr/guide/installation#desteklenen-proje-turleri) bakın.
 
 ## Ne *değildir*
 

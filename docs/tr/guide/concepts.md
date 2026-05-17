@@ -108,4 +108,4 @@ Sonuçta agent'a giden bağlam yükü, ham içeriği olduğu gibi göndermekten 
 
 ---
 
-Sıradaki: [Kurulum](/tr/guide/kurulum) — CodeWikiTap'i agent'ınıza nasıl bağlarsınız.
+Sıradaki: [Kurulum](/tr/guide/installation) — CodeWikiTap'i agent'ınıza nasıl bağlarsınız.

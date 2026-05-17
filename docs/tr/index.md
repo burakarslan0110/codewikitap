@@ -8,10 +8,10 @@ hero:
   actions:
     - theme: brand
       text: Başla
-      link: /tr/guide/kurulum
+      link: /tr/guide/installation
     - theme: alt
       text: Nedir?
-      link: /tr/guide/kavramlar
+      link: /tr/guide/concepts
     - theme: alt
       text: GitHub
       link: https://github.com/burakarslan0110/codewikitap-mcp
@@ -52,7 +52,7 @@ Tipik bir CodeWiki sayfası 2.000–4.000 token tutar. Gerçek bir kütüphaneni
 CodeWikiTap bunun yerine odaklı, kaynak gösteren küçük parçalar verir (yaklaşık 5 × 250 token ≈ 1,2 bin token). Bu, ham içeriği olduğu gibi göndermekten **40–80 kat daha küçük** bir yük; üstelik ölçülebilir biçimde daha yüksek isabet sağlar.
 
 ::: tip Dokümantasyon
-Bu site projenin tüm yüzünü ve tasarımını anlatır. Kavramsal arka plan için [CodeWikiTap nedir?](/tr/guide/kavramlar) sayfasına bakabilir ya da doğrudan [Kurulum](/tr/guide/kurulum) ile başlayabilirsiniz.
+Bu site projenin tüm yüzünü ve tasarımını anlatır. Kavramsal arka plan için [CodeWikiTap nedir?](/tr/guide/concepts) sayfasına bakabilir ya da doğrudan [Kurulum](/tr/guide/installation) ile başlayabilirsiniz.
 :::
 
 > CodeWikiTap bağımsız ve **resmi olmayan** bir projedir; Google ile herhangi bir bağı yoktur, Google tarafından onaylanmamıştır. "CodeWiki" adı yalnızca üst kaynaktaki içeriği belirtmek amacıyla kullanılmaktadır.

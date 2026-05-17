@@ -151,4 +151,4 @@ MCP istemcisinden `-32000` geliyorsa sebep neredeyse her zaman ya (1) ilk açıl
 
 ---
 
-Sıradaki: [5 araç](/tr/guide/araclar) — agent'a sunulan API yüzeyi.
+Sıradaki: [5 araç](/tr/guide/tools) — agent'a sunulan API yüzeyi.

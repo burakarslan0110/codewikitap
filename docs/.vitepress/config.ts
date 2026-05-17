@@ -14,7 +14,7 @@ export default defineConfig({
   srcExclude: ['plans/**', '**/README.md'],
 
   head: [
-    ['link', { rel: 'icon', href: '/codewikitap-mcp/logo.png' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/codewikitap-mcp/logo-icon.png' }],
     ['meta', { name: 'og:image', content: '/codewikitap-mcp/banner.png' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
   ],
@@ -84,9 +84,9 @@ export default defineConfig({
         'Google CodeWiki dokümantasyonunu kodlama agent\'ına RAG ile akıtan unofficial MCP server.',
       themeConfig: {
         nav: [
-          { text: 'Kılavuz', link: '/tr/guide/kavramlar' },
-          { text: 'Kurulum', link: '/tr/guide/kurulum' },
-          { text: 'Araçlar', link: '/tr/guide/araclar' },
+          { text: 'Kılavuz', link: '/tr/guide/concepts' },
+          { text: 'Kurulum', link: '/tr/guide/installation' },
+          { text: 'Araçlar', link: '/tr/guide/tools' },
           { text: 'GitHub', link: githubUrl },
         ],
         sidebar: {
@@ -94,16 +94,16 @@ export default defineConfig({
             {
               text: 'Giriş',
               items: [
-                { text: 'CodeWikiTap nedir?', link: '/tr/guide/kavramlar' },
-                { text: 'Kurulum', link: '/tr/guide/kurulum' },
+                { text: 'CodeWikiTap nedir?', link: '/tr/guide/concepts' },
+                { text: 'Kurulum', link: '/tr/guide/installation' },
               ],
             },
             {
               text: 'Derinlemesine',
               items: [
-                { text: 'Mimari', link: '/tr/guide/mimari' },
-                { text: '5 araç', link: '/tr/guide/araclar' },
-                { text: 'Yapılandırma', link: '/tr/guide/yapilandirma' },
+                { text: 'Mimari', link: '/tr/guide/architecture' },
+                { text: '5 araç', link: '/tr/guide/tools' },
+                { text: 'Yapılandırma', link: '/tr/guide/configuration' },
               ],
             },
           ],

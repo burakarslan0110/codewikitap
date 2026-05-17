@@ -79,7 +79,7 @@
 
 ## Sorun giderme
 
-### Soğuk başlangıçta MCP `-32000`
+### İlk açılışta MCP `-32000`
 
 `npx codewikitap`'in ilk çalıştırmasında MCP istemcisi `-32000` raporu veriyor ve yeniden bağlanıyor.
 

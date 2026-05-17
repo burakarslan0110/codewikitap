@@ -159,8 +159,8 @@ Kurulumdan sonra agent'ınızı yeniden başlatın ve sorun:
 
 Agent kendiliğinden `list_project_dependencies`'i çağırıp bağımlılık bazlı bir kapsam raporu döndürmelidir. Eğer "MCP server kayıtlı değil" yazısını görürseniz, yapılandırma dosyası yazıldı ama agent yeniden yüklenmedi demektir — agent'ı tamamen kapatıp yeniden açın.
 
-Sorun gidermek için (soğuk başlangıç hataları, `-32000`, eksik prebuilt'ler vb.) [Yapılandırma → Sorun giderme](/tr/guide/yapilandirma#sorun-giderme) bölümüne bakın.
+Sorun gidermek için (ilk açılış hataları, `-32000`, eksik prebuilt'ler vb.) [Yapılandırma → Sorun giderme](/tr/guide/configuration#sorun-giderme) bölümüne bakın.
 
 ---
 
-Sıradaki: [Mimari](/tr/guide/mimari) — kaputun altında neler dönüyor.
+Sıradaki: [Mimari](/tr/guide/architecture) — kaputun altında neler dönüyor.
