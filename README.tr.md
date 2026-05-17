@@ -32,6 +32,10 @@ npx codewikitap install
 
 ## Ne işe yarar?
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/logo-mark.png" alt="CodeWikiTap logosu" width="360"/>
+</p>
+
 Makinende lokal çalışan küçük bir Node programı — bir [**MCP server**](https://modelcontextprotocol.io). Kodlama agent'ın (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) onunla stdio üzerinden konuşur ve server **5 araç** sunar; agent ihtiyaç duyduğu anda [Google CodeWiki](https://codewiki.google) dokümantasyonunu context'ine çekebilir — heading sınırlarında parçalanmış, hybrid BM25 + vector + cross-encoder rerank ile skorlanmış, byte-equal citation footer ile damgalanmış olarak.
 
 ```

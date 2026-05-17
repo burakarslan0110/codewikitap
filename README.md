@@ -32,6 +32,10 @@ npx codewikitap install
 
 ## What it is
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/logo-mark.png" alt="CodeWikiTap logo" width="360"/>
+</p>
+
 A small Node program that runs locally as an [**MCP server**](https://modelcontextprotocol.io). Your coding agent (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) talks to it over stdio and the server exposes **5 tools** that let the agent pull [Google CodeWiki](https://codewiki.google) documentation into context on demand — chunked at heading boundaries, scored with hybrid BM25 + vector + cross-encoder rerank, and stamped with a byte-equal citation footer.
 
 ```

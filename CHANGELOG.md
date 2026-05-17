@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Brand mark (`assets/logo-mark.png`).** Tightly-cropped Canva design — "Google-Inspired Open Book Logo" (design `DAHJestmHOQ`): open book with red left page, blue right page, yellow base and a small spark, paired with a "CodeWikiTap" wordmark in dark-gray sans-serif. White background. Placed under the "What it is" / "Ne işe yarar?" heading in both READMEs via raw GitHub URL.
+- **VitePress navbar logo updated to icon-only.** `assets/logo-icon.png` / `docs/public/logo-icon.png` — the open-book glyph from the brand mark, cropped to a 304×304 square with transparent background. `docs/.vitepress/config.ts` now uses `themeConfig.logo = '/logo-icon.png'` and an explicit `siteTitle = 'CodeWikiTap'`, so the navbar pairs the colored icon with the "CodeWikiTap" wordmark rendered in the docs font.
+- **VitePress custom theme.** `docs/.vitepress/theme/index.ts` + `style.css` register a custom theme that imports Manrope from Google Fonts (matching the wordmark in the brand mark) and applies it to `--vp-font-family-base` and the navbar title; the title color flips automatically with VitePress's light/dark mode. The legacy `assets/logo.png` (previous favicon) is still referenced by `<link rel="icon">` in `docs/.vitepress/config.ts`.
+
 ## [0.7.2] - 2026-05-17
 
 ### Added

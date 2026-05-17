@@ -20,7 +20,8 @@ export default defineConfig({
   ],
 
   themeConfig: {
-    logo: '/logo.png',
+    logo: '/logo-icon.png',
+    siteTitle: 'CodeWikiTap',
     socialLinks: [
       { icon: 'github', link: githubUrl },
       { icon: 'npm', link: npmUrl },
