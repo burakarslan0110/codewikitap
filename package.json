@@ -12,7 +12,8 @@
     "README.md",
     "README.tr.md",
     "LICENSE",
-    "assets",
+    "assets/logo-icon.png",
+    "assets/logo-mark.png",
     ".claude-plugin",
     ".mcp.json",
     "scripts/postinstall.mjs"

@@ -5,8 +5,8 @@
  * - Runs `pnpm pack` to produce a tarball matching what `npm publish` would ship.
  * - Installs the tarball into a temp dir.
  * - Asserts the installed package's file allowlist matches expectations
- *   (presence of dist/, README.md, README.tr.md, LICENSE, assets/logo.svg,
- *   .claude-plugin/plugin.json; absence of tests/, docs/, .github/,
+ *   (presence of dist/, README.md, README.tr.md, LICENSE, assets/logo-icon.png,
+ *   assets/logo-mark.png, .claude-plugin/plugin.json; absence of tests/, docs/, .github/,
  *   scripts/, node_modules/, 2026-*.md).
  * - Asserts the `codewikitap` bin file exists and is executable.
  * - Does NOT invoke the binary (src/index.ts has no --version flag handler;
@@ -35,7 +35,8 @@ const REQUIRED_FILES = [
   'README.md',
   'README.tr.md',
   'LICENSE',
-  'assets/logo.png',
+  'assets/logo-icon.png',
+  'assets/logo-mark.png',
   '.claude-plugin/plugin.json',
   '.claude-plugin/marketplace.json',
   '.mcp.json',
