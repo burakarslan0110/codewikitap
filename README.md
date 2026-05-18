@@ -1,10 +1,10 @@
-<p align="center">
-  <video src="https://github.com/burakarslan0110/codewikitap-mcp/releases/download/v0.7.4/codewikitap-demo.mp4" controls muted playsinline width="720" poster="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/codewikitap-demo-poster.jpg">
-    <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/codewikitap-demo-poster.jpg" alt="CodeWikiTap" width="720"/>
-  </video>
-</p>
-
 <h1 align="center">CodeWikiTap</h1>
+
+
+
+https://github.com/user-attachments/assets/b57e8cfb-a6f3-4d59-a41a-92c8b4a8fcc6
+
+
 
 <p align="center">
   <strong>An <em>unofficial</em>, RAG-powered MCP server that streams Google CodeWiki documentation into your coding agent — chunked, cited, and grounded in the exact commit your dependency is pinned to.</strong>
@@ -33,10 +33,6 @@ npx codewikitap install
 ---
 
 ## What it is
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/logo-mark.png" alt="CodeWikiTap logo" width="360"/>
-</p>
 
 A small Node program that runs locally as an [**MCP server**](https://modelcontextprotocol.io). Your coding agent (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) talks to it over stdio and the server exposes **5 tools** that let the agent pull [Google CodeWiki](https://codewiki.google) documentation into context on demand — chunked at heading boundaries, scored with hybrid BM25 + vector + cross-encoder rerank, and stamped with a byte-equal citation footer.
 
