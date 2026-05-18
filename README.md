@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/banner.png?v=2" alt="CodeWikiTap" width="720"/>
+  <video src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/codewikitap-demo.mp4" controls muted playsinline width="720" poster="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/codewikitap-demo-poster.jpg">
+    <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/codewikitap-demo-poster.jpg" alt="CodeWikiTap" width="720"/>
+  </video>
 </p>
 
 <h1 align="center">CodeWikiTap</h1>

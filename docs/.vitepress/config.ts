@@ -15,7 +15,7 @@ export default defineConfig({
 
   head: [
     ['link', { rel: 'icon', type: 'image/png', href: '/codewikitap-mcp/logo-icon.png' }],
-    ['meta', { name: 'og:image', content: '/codewikitap-mcp/banner.png' }],
+    ['meta', { name: 'og:image', content: '/codewikitap-mcp/codewikitap-demo-poster.jpg' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
   ],
 
