@@ -54,10 +54,6 @@ A small Node program that runs locally as an [**MCP server**](https://modelconte
 
 **Why RAG and not "just fetch the docs"?** A typical CodeWiki page is 2–4 k tokens; Next.js alone has 18 pages. Naive injection blows the context budget before the question is even read. CodeWikiTap returns ~5 chunks of ~250 tokens each — roughly **40–80× smaller** with higher recall (regression-locked: `NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80`).
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/logo-mark.png" alt="CodeWikiTap logo" width="360"/>
-</p>
-
 ## Quick install
 
 ```bash
