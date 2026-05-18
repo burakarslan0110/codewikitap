@@ -37,14 +37,26 @@ npx codewikitap install
 A small Node program that runs locally as an [**MCP server**](https://modelcontextprotocol.io). Your coding agent (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) talks to it over stdio and the server exposes **5 tools** that let the agent pull [Google CodeWiki](https://codewiki.google) documentation into context on demand — chunked at heading boundaries, scored with hybrid BM25 + vector + cross-encoder rerank, and stamped with a byte-equal citation footer.
 
 ```
-   ┌─────────────────┐  stdio    ┌──────────────────┐  hybrid retrieval   ┌────────────────┐
-   │  Coding agent   │ ────────► │   CodeWikiTap    │ ──────────────────► │ Google CodeWiki │
-   │  asks a question│           │  (local server)  │  cached, SHA-pinned │  (public only)  │
-   └─────────────────┘           └──────────────────┘                     └────────────────┘
-                                  no API keys · no telemetry
+   ┌─────────────────┐   stdio    ┌─────────────────┐  hybrid retrieval  ┌─────────────────┐
+   │  Coding agent   │ ─────────► │   CodeWikiTap   │ ─────────────────► │ Google CodeWiki │
+   │  asks a question│            │  (local server) │ cached, SHA-pinned │  (public only)  │
+   └─────────────────┘            └────────┬────────┘                    └─────────────────┘
+                                           │
+                                           │ traversal
+                                           │
+                                  ┌────────┴────────┐
+                                  │ Knowledge graph │
+                                  │  5 edge types   │
+                                  └─────────────────┘
+
+                          no API keys  ·  no telemetry  ·  local cache
 ```
 
 **Why RAG and not "just fetch the docs"?** A typical CodeWiki page is 2–4 k tokens; Next.js alone has 18 pages. Naive injection blows the context budget before the question is even read. CodeWikiTap returns ~5 chunks of ~250 tokens each — roughly **40–80× smaller** with higher recall (regression-locked: `NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80`).
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/logo-mark.png" alt="CodeWikiTap logo" width="360"/>
+</p>
 
 ## Quick install
 

@@ -34,21 +34,29 @@ npx codewikitap install
 
 ## Ne işe yarar?
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/logo-mark.png" alt="CodeWikiTap logosu" width="360"/>
-</p>
-
 CodeWikiTap, bilgisayarınızda yerel olarak çalışan küçük bir Node uygulamasıdır; bir [**MCP sunucusu**](https://modelcontextprotocol.io). Kullandığınız kodlama agent'ı (Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Antigravity, Windsurf) bu sunucuyla stdio üzerinden konuşur. Sunucu agent'a **beş araç** sunar; agent ihtiyaç duyduğu anda [Google CodeWiki](https://codewiki.google) dokümantasyonunu kendi bağlamına çekebilir. İçerik başlık sınırlarında parçalara bölünmüş, BM25 + vektör arama + cross-encoder yeniden sıralama ile puanlanmış ve her parçanın altına kaynağa bağlanan değişmez bir alt bilgi eklenmiş olarak gelir.
 
 ```
-   ┌─────────────────┐  stdio    ┌──────────────────┐  hibrit arama       ┌──────────────────┐
-   │ Kodlama agent'ı │ ────────► │   CodeWikiTap    │ ──────────────────► │ Google CodeWiki  │
-   │ soru sorar      │           │  (yerel sunucu)  │  önbellekli, sabit  │ (yalnız public)  │
-   └─────────────────┘           └──────────────────┘                     └──────────────────┘
-                                  API anahtarı yok · telemetri yok
+   ┌─────────────────┐    stdio   ┌─────────────────┐    hibrit arama    ┌─────────────────┐
+   │ Kodlama agent'ı │ ─────────► │   CodeWikiTap   │ ─────────────────► │ Google CodeWiki │
+   │ soru sorar      │            │  (yerel sunucu) │ önbellekli, sabit  │ (yalnız public) │
+   └─────────────────┘            └────────┬────────┘                    └─────────────────┘
+                                           │
+                                           │ gezinti
+                                           │
+                                  ┌────────┴────────┐
+                                  │  Bilgi grafiği  │
+                                  │  5 kenar tipi   │
+                                  └─────────────────┘
+
+                       API anahtarı yok  ·  telemetri yok  ·  yerel önbellek
 ```
 
 **Neden hazır içeriği doğrudan vermek yerine RAG?** Tipik bir CodeWiki sayfası 2–4 bin token tutuyor; tek başına Next.js'in 18 sayfası var. Hepsini olduğu gibi bağlama doldurmak, daha ilk soruya gelmeden bütçenizi tüketir. CodeWikiTap bunun yerine ortalama 250 token'lık 5 küçük parça döndürür — **40–80 kat daha küçük** bir yük, ölçülebilir biçimde daha yüksek isabet (`NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80` eşikleri test ile kilitli).
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/logo-mark.png" alt="CodeWikiTap logosu" width="360"/>
+</p>
 
 ## Hızlı kurulum
 
