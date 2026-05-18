@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-05-18
+
+### Fixed
+
+- align verify-publish allowlist with renamed logo files
+
 ## [0.7.3] - 2026-05-18
 
 ### Notes
