@@ -37,6 +37,10 @@ features:
     details: Claude Code, Cursor, VS Code, Codex CLI, Gemini CLI, Qwen Code, opencode, Windsurf, Antigravity. Tek bir sihirbaz her birine uygun yapılandırma bloğunu yazar.
 ---
 
+<div style="display: flex; justify-content: center; margin: 2.5rem 0;">
+  <video src="/codewikitap-demo.mp4" poster="/codewikitap-demo-poster.jpg" controls muted playsinline style="width: 100%; max-width: 880px; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.25);"></video>
+</div>
+
 ## Hızlı kurulum
 
 ```bash
