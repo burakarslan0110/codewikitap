@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-05-18
+
+### Notes
+
+- Replace banner with demo video and first-frame poster
+- Rename Turkish guide pages and update URLs
+- Update Turkish docs and readme wording
+- Make VPHero elements block and full width
+- Center docs landing hero and add author credit
+- Add brand assets and VitePress theme
+- Remove .npmrc and configure pnpm workspace flags
+
 ### Added
 
 - **Brand mark (`assets/logo-mark.png`).** Tightly-cropped Canva design — "Google-Inspired Open Book Logo" (design `DAHJestmHOQ`): open book with red left page, blue right page, yellow base and a small spark, paired with a "CodeWikiTap" wordmark in dark-gray sans-serif. White background. Placed under the "What it is" / "Ne işe yarar?" heading in both READMEs via raw GitHub URL.
