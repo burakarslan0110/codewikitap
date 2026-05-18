@@ -1,10 +1,6 @@
-<p align="center">
-  <video src="https://github.com/burakarslan0110/codewikitap-mcp/releases/download/v0.7.4/codewikitap-demo.mp4" controls muted playsinline width="720" poster="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/codewikitap-demo-poster.jpg">
-    <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/codewikitap-demo-poster.jpg" alt="CodeWikiTap" width="720"/>
-  </video>
-</p>
-
 <h1 align="center">CodeWikiTap</h1>
+
+https://github.com/user-attachments/assets/b57e8cfb-a6f3-4d59-a41a-92c8b4a8fcc6
 
 <p align="center">
   <strong>Google CodeWiki dokümantasyonunu kodlama agent'ına taşıyan <em>resmi olmayan</em> bir MCP sunucusu. İçerik parçalara bölünüp kaynağıyla birlikte, paketinizin sabitlendiği commit'e dayanarak getirilir.</strong>
@@ -54,9 +50,6 @@ CodeWikiTap, bilgisayarınızda yerel olarak çalışan küçük bir Node uygula
 
 **Neden hazır içeriği doğrudan vermek yerine RAG?** Tipik bir CodeWiki sayfası 2–4 bin token tutuyor; tek başına Next.js'in 18 sayfası var. Hepsini olduğu gibi bağlama doldurmak, daha ilk soruya gelmeden bütçenizi tüketir. CodeWikiTap bunun yerine ortalama 250 token'lık 5 küçük parça döndürür — **40–80 kat daha küçük** bir yük, ölçülebilir biçimde daha yüksek isabet (`NDCG@8 ≥ 0.55`, `Recall@8 ≥ 0.80` eşikleri test ile kilitli).
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/burakarslan0110/codewikitap-mcp/main/assets/logo-mark.png" alt="CodeWikiTap logosu" width="360"/>
-</p>
 
 ## Hızlı kurulum
 
